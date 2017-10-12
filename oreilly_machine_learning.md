@@ -220,3 +220,122 @@ groups = [0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 3]
 scores = cross_val_score(logreg, X, y, groups, cv=GroupKFold(n_splits=3))
 print("Cross-validation scores:\n{}".format(scores))
 ```
+
+## グリッドサーチ
+### グリッドサーチとは
+モデルのハイパーパラメータの最適化をするための手法。  
+イメージ的には、いじれるパラメタの値を幾つかパターンを出し、それぞれの組み合わせを総当り戦的にスコア取得して行く。
+### 使うデータについて
+以下のような分け方をするよ！
+![グリッドサーチのデータの分け方](src/img/oreilly_machine_learning/gridsearch_data.jpg)
+全体のデータの中で、データは__3分割__する。  
+最終的に使うテスト用のデータ(=test set)は、グリッドサーチでは__絶対触らない。__  
+図表の中にある訓練データ(=training set)でモデルを構築する際、複数のパラメーターを使ってモデルを複数作成し、それぞれに対して validation set を使ってそのモデルの精度を見ていき、もっとも精度の高いパラメーターを判断する。  
+
+### グリッドサーチの流れ
+![グリッドサーチの作業の流れ](src/img/oreilly_machine_learning/gridsearch_flow.jpg)
+パラメーターをグリッドサーチする際、実際にはクロスバリデーションで精度検証をするのが普通。  
+つまり、ある1組のパラメータパターンに対してクロスバリデーションした結果の精度平均を持って判断する。  
+そうして選ばれた「ベストパラメーター」を用いて、改めて訓練データ(＝グリッドサーチで使ったデータ全体)を用いてモデルをフィットさせ、テストデータで最終的に精度を見る。  
+
+### scikitlearn で書く
+```
+# どのパラメータの組み合わせでやるのかを、ディクショナリとリストで定義
+param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100],
+              'gamma': [0.001, 0.01, 0.1, 1, 10, 100]}
+
+# GridSearchCV インスタンス作成。
+# 使いたいモデルインスタンスと、パラメタグリッド、CVスプリット数を指定。
+# CVパラメタは、分割用のインスタンスを指定もできるよ！
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+grid_search = GridSearchCV(SVC(), param_grid, cv=5)
+
+# テストデータと訓練データに分ける
+X_train, X_test, y_train, y_test = train_test_split(
+    iris.data, iris.target, random_state=0)
+
+# 訓練データで、GridSearchCVインスタンスをフィットさせる
+# 内部的にグリッドサーチが行われ、ベストパラメタが選ばれ、そのパラメタを用いたモデルで訓練データに対するフィットが行われる。
+# GridSearchCVは、モデルのラッパー的なイメージ？
+grid_search.fit(X_train, y_train)
+
+# テストデータで精度確認。
+# このテストデータは、グリッドサーチでは使ってないのがミソ
+print("Test set score: {:.2f}".format(grid_search.score(X_test, y_test)))
+
+
+# ベストパラメーターはここに格納
+print("Best parameters: {}".format(grid_search.best_params_))
+
+# そのベストパラメタのでのクロスバリデーションスコアは、ここに格納
+print("Best cross-validation score: {:.2f}".format(grid_search.best_score_))
+
+# 全てのパラメタにおける結果等は、cv_results_に格納
+import pandas as pd
+# データフレームにしとくと見やすいよ
+results = pd.DataFrame(grid_search.cv_results_)
+display(results.head())
+```
+
+### グリッドサーチの調整手法
+一番のキモは、パラメータのグリッドを作成するところ。  
+(前述ソースで言えば下記のところ)
+```
+# どのパラメータの組み合わせでやるのかを、ディクショナリとリストで定義
+param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100],
+              'gamma': [0.001, 0.01, 0.1, 1, 10, 100]}
+```
+この値の最小値・最大値をどの程度にしておくかで、うまくグリッドサーチできるかどうかが決まる。
+#### グリッドサーチの調整手順
+1. 試してみたいパラメータに対して、極端に大きい(小さい)値を使って、予めスコアを見てみる
+2. どの当たりまで値を変えると効きの違いがあるかを見定め、その効きがよい値が含まれる範囲でパラメーターのグリッドを作る
+3. グリッドサーチしてみる
+4. 精度が低い場合は、グリッドサーチの結果(cv\_results\_)のmean_test_scoreを可視化してみて、パラメーター別の精度に変化があるかどうかを確認
+5. 変化が無ければ、2の見定めが悪かったので、2からやり直し
+6. やり直してみてもだめな場合は、そもそもパラメータでそんなに変化しないんだと思うよ。。。
+
+### 試したいパラメタできれいなグリッドが作れない場合は？
+SVCモデルには、「kernel」というパラメタがある。kernel='linear'の場合、他に使えるパラメタは「C」だけだが、kernel = 'rbf'の場合、使えるパラメタは「C」と「gamma」の2つ。  
+こういった場合に対処するため、scikitlearnでは引数で受け取るグリッド情報に「ディクショナリを要素としてもつリスト」を許容してある！
+```
+param_grid = [{'kernel': ['rbf'],
+               'C': [0.001, 0.01, 0.1, 1, 10, 100],
+               'gamma': [0.001, 0.01, 0.1, 1, 10, 100]},
+              {'kernel': ['linear'],
+               'C': [0.001, 0.01, 0.1, 1, 10, 100]}]
+```
+### 交差検証法を変えたい場合
+cvパラメタに、分割器のインスタンスを与えたらイケるよ！
+```
+
+grid_search = GridSearchCV(
+  SVC(), param_grid, cv = StratifiedShuffleSplit(n_splits=1)
+  )
+grid_search.fit(X_train, y_train)
+```
+
+### 最終テスト自体もクロスバリデーションしちゃう事もできる
+個々までの説明では、最終的なテストは1回しか実施していない。  
+(下記図の赤丸部分)
+![グリッドサーチの作業の流れ](src/img/oreilly_machine_learning/gridsearch_flow_outerCV.jpg)
+なので、このクダリでもクロスバリデーションさせると、より良いね！
+#### スクリプト
+```
+param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100],
+              'gamma': [0.001, 0.01, 0.1, 1, 10, 100]}
+
+# クロスバリデーションメソッドに食わせるモデルとして、GridSearchCVインスタンスを指定するだけで良い！
+scores = cross_val_score(GridSearchCV(SVC(), param_grid, cv=5),
+                         iris.data, iris.target, cv=5)
+```
+### 多くの組み合わせを一気に計算させるために
+クロスバリデーション、グリッドサーチは、掛け算でイテレーション回数が増えていくので、場合によってはものすごい数の計算をする事になる。  
+ただ、実際の計算過程では、並走可能な計算処理も多々ある。特に、グリッドサーチでは、各パラメタのクロスバリデーションはお互いの結果がお互いに影響し合うようなものではないので、並走可能。  
+そこで、scikitlearnではCPUコアやクラスタを使って並列化するためのオプションがある。
+```
+# 指定の仕方は以下の通り
+sklearn.model_selection.GridSearchCV(n_jobs=2)
+sklearn.model_selection.cross_val_score(n_jobs=2)
+```
