@@ -1,5 +1,5 @@
 import pandas as pd
-data = pd.read_csv("ch2/キュウリ.csv")
+data = pd.read_csv("入門 統計学 検定から多変量解析・実験計画法まで/ch2/キュウリ.csv")
 
 # 標準化カラムを個別に作る
 data["normalizedA"] = (data.cultivationA - data.cultivationA.mean()) / data.cultivationA.std(ddof=False)
