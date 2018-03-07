@@ -77,3 +77,14 @@ ___大数の法則___ と言う。
 時間軸を含めたイメージは、下記URLが分かりやすい。
 
 http://rpsychologist.com/d3/CI/
+
+
+## 4.3 正規分布による区間推定 <sub>母分散が既知、もしくは代表本の場合</sub>
+
+母分散が既知なので、標本平均の分布は、標準偏差(＝標準誤差)
+
+\overrightarrow{AB}
+
+f(x) = \int_{-\infty}^\infty
+    \hat f(\xi)\,e^{2 \pi i \xi x}
+    \,d\xi
