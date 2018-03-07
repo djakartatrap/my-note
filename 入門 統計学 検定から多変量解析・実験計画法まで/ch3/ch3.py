@@ -1,7 +1,7 @@
 import pandas as pd
 import math
 
-data = pd.read_csv("入門 統計学 検定から多変量解析・実験計画法まで/ch3/キュウリ.csv")
+data = pd.read_csv("キュウリ.csv")
 
 """
 例題

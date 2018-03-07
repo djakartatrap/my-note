@@ -32,3 +32,5 @@ std_sample = 680.6
 upper = mean_sample + 1.65 * std_sample / math.sqrt(n_sample)
 
 lower = mean_sample - 1.65 * std_sample / math.sqrt(n_sample)
+
+print(lower)
