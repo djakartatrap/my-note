@@ -118,7 +118,7 @@ stats.norm.interval(0.95, loc = sample_mean, scale = math.sqrt(population_var/sa
 
 # データ準備
 import pandas as pd
-data = pd.read_csv("Ch1_章末問題2.csv")
+data = pd.read_csv("ch4/Ch1_章末問題2.csv")
 # データ状況把握
 data
 data["sellAmount"].describe()
@@ -142,9 +142,8 @@ upper = sample_mean + 2.093 * (sample_sd / math.sqrt(sampleSize-1))
 lower, upper
 
 stats.t.interval(0.95, sampleSize - 1, loc = sample_mean, scale=sample_sd / math.sqrt(sampleSize-1))
-import statsmodels.stats as sm_stats
-sm_stats.weightstats._tconfint_generic(sample_mean, sample_sd / math.sqrt(sampleSize-1), sampleSize-1, 1-0.95, "2s")
-
+import statsmodels.stats.weightstats as weightstats
+weightstats._tconfint_generic(sample_mean, sample_sd / math.sqrt(sampleSize-1), sampleSize-1, 1-0.95, "2s")
 
 # 問3
 # あるペットショップの猫の中から20匹を無作為抽出して血液型を調べたところ，
