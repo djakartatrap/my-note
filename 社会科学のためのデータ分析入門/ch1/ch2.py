@@ -118,3 +118,103 @@ fullPropAfter_NJ = (minwage_df[minwage_df["location"] != "PA"]["fullAfter"] / (m
 fullPropAfter_PA = (minwage_df[minwage_df["location"] == "PA"]["fullAfter"] / (minwage_df[minwage_df["location"] == "PA"]["fullAfter"] + minwage_df[minwage_df["location"] == "PA"]["partAfter"])).mean()
 
 fullPropAfter_NJ - fullPropAfter_PA
+
+
+# 2.5.2 交絡バイアス
+# NJとPAでは、バーガーキングの存在割合が大きく異なる。もしバーガーキングが雇用条件において
+# 常勤雇用者を強く保護する方針だったりすると、バーガーキングが多くある州の方が、
+# トリートメントなくても常勤雇用割合が増える可能性がある(＝バーガーキングが多い事が交絡因子
+
+# 州別に、バーガーチェーン店の割合を見てみる
+minwage_df_PA.groupby("chain").count()["location"] / minwage_df_PA.groupby("chain").count().sum()["location"]
+
+minwage_df_NJ = minwage_df[minwage_df["location"] != "PA"]
+minwage_df_NJ.groupby("chain").count()["location"] / minwage_df_NJ.groupby("chain").count().sum()["location"]
+
+minwage_df_PA.loc[:, "fullPropAfter"] = minwage_df_PA.fullAfter / (minwage_df_PA.fullAfter + minwage_df_PA.partAfter)
+minwage_df_NJ.loc[:, "fullPropAfter"] = minwage_df_NJ.fullAfter / (minwage_df_NJ.fullAfter + minwage_df_NJ.partAfter)
+
+# 最低賃金が上がったNJでの常勤雇用割合は、バーガーキングのみのセグメントで比較しても、3.6ポイントくらい、
+# 全体の差 4.8ポイント
+# もし、チェーン店の違いが交絡因子だとして、チェーン店別の層別分析をしてみても、NJの方が常勤雇用割合が高い
+# つまり、最低賃金を上げる事が、雇用になにか影響を与えているとはいえない
+minwage_df_NJ[minwage_df_NJ["chain"] == "burgerking"]["fullPropAfter"].mean() - minwage_df_PA.loc[minwage_df_PA["chain"] == "burgerking"]["fullPropAfter"].mean()
+minwage_df_NJ[minwage_df_NJ["chain"] == "roys"]["fullPropAfter"].mean() - minwage_df_PA.loc[minwage_df_PA["chain"] == "roys"]["fullPropAfter"].mean()
+minwage_df_NJ[minwage_df_NJ["chain"] == "kfc"]["fullPropAfter"].mean() - minwage_df_PA.loc[minwage_df_PA["chain"] == "kfc"]["fullPropAfter"].mean()
+
+# 他に交絡因子として考えられるのは、エリア。NJ州のなかでもPA州に近いところでは、
+# PA州の特色を引き継いでいる可能性があり、その影響でNJ州での最低賃金が雇用率に与える影響がない、
+# という事も考えられる(＝エリアが交絡因子)ので、エリアでの層別分析をする
+
+# PA州から遠いエリアだけに限定したNJデータで、常勤割合の平均の差を比較。2つの交絡因子候補、チェーン✕エリア
+minwage_df_NJ[(minwage_df_NJ["location"] != "shoreNJ") & (minwage_df_NJ["location"] != "centralNJ") & (minwage_df_NJ["chain"] == "burgerking")]["fullPropAfter"].mean() - minwage_df_PA[minwage_df_PA["chain"] == "burgerking"]["fullPropAfter"].mean()
+minwage_df_NJ[(minwage_df_NJ["location"] != "shoreNJ") & (minwage_df_NJ["location"] != "centralNJ") & (minwage_df_NJ["chain"] == "roys")]["fullPropAfter"].mean() - minwage_df_PA[minwage_df_PA["chain"] == "roys"]["fullPropAfter"].mean()
+minwage_df_NJ[(minwage_df_NJ["location"] != "shoreNJ") & (minwage_df_NJ["location"] != "centralNJ") & (minwage_df_NJ["chain"] == "kfc")]["fullPropAfter"].mean() - minwage_df_PA[minwage_df_PA["chain"] == "kfc"]["fullPropAfter"].mean()
+
+# どのチェーンに対してエリアでさらに層別で見ても、最低賃金が常勤雇用割合に影響を与えている箇所は見られなかった
+
+# 事前・事後分析
+# NJでの法施行前の常勤雇用割合
+minwageNJ_before = minwage_df_NJ.fullBefore / (minwage_df_NJ.fullBefore + minwage_df_NJ.partBefore)
+minwageNJ_after = minwage_df_NJ.fullAfter / (minwage_df_NJ.fullAfter + minwage_df_NJ.partAfter)
+
+NJ_diff = minwageNJ_after.mean() - minwageNJ_before.mean()
+
+# DiD
+# PAの事前の常勤労働者の割合
+
+minwagePA_before = minwage_df_PA.fullBefore / (minwage_df_PA.fullBefore + minwage_df_PA.partBefore)
+minwagePA_after = minwage_df_PA.fullAfter / (minwage_df_PA.fullAfter + minwage_df_PA.partAfter)
+
+PA_diff = minwagePA_after.mean() - minwagePA_before.mean()
+
+NJ_diff - PA_diff
+
+# 2.6 記述統計量
+# 中央値で横断比較とDiD
+
+# 事後の常勤割合中央値の差(横断比較)
+minwage_df_NJ.fullPropAfter.median() - minwage_df_PA.fullPropAfter.median()
+
+# 事前事後比較(DiD)
+minwage_df_NJ.loc[:, "fullPropBefore"] = minwage_df_NJ.fullBefore / (minwage_df_NJ.fullBefore + minwage_df_NJ.partBefore)
+minwage_df_PA.loc[:, "fullPropBefore"] = minwage_df_PA.fullBefore / (minwage_df_PA.fullBefore + minwage_df_PA.partBefore)
+NJdiff_med = minwage_df_NJ.fullPropAfter.median() - minwage_df_NJ.fullPropBefore.median()
+PAdiff_med = minwage_df_PA.fullPropAfter.median() - minwage_df_PA.fullPropBefore.median()
+
+NJdiff_med - PAdiff_med
+
+# 四分位を見る
+minwage_df_NJ.wageBefore.describe()
+minwage_df_NJ.wageAfter.describe()
+
+tempData = minwage_df_NJ[["wageBefore", "wageAfter"]].copy()
+tempData = tempData.stack()
+tempData = tempData.reset_index(level=[1])
+tempData[[0]]
+sns.boxplot(x="level_1", y=0, data=tempData)
+plt.show()
+
+# 10分位で見てみる
+arr = []
+
+for f in range(0, 101, 10) :
+    arr.append(f / 100)
+
+minwage_df_NJ.wageBefore.quantile(arr)
+minwage_df_NJ.wageAfter.quantile(arr)
+
+# RMS
+import math
+math.sqrt(((minwage_df_NJ.fullPropAfter - minwage_df_NJ.fullPropBefore)**2).mean())
+(minwage_df_NJ.fullPropAfter - minwage_df_NJ.fullPropBefore).mean()
+
+# 標準偏差
+minwage_df_NJ.fullPropBefore.std()
+minwage_df_NJ.fullPropAfter.std()
+
+# 分散
+minwage_df_NJ.fullPropBefore.var()
+minwage_df_NJ.fullPropAfter.var()
+
+
