@@ -1,0 +1,137 @@
+---
+title: "Co-ethnic Candidates and Voter Turnout"
+output: pdf_document
+---
+  
+For this problem set, we will analyze data from the following article:
+
+Fraga, Bernard. (2015) ["Candidates or Districts? Reevaluating the Role of Race in Voter Turnout,"](http://dx.doi.org/10.1111/ajps.12172) *American Journal of Political Science*, Vol. 60, No. 1, pp. 97--122.
+
+Fraga assesses the theory that minority voters are more likely to vote in elections featuring co-ethnic candidates. He shows that the association between minority voter turnout and co-ethnic candidates disappears once we take into account district-level racial composition. In particular, he demonstrates that in districts where blacks make up a greater share of the voting-age population, blacks in that district are more likely to vote in elections *regardless* of candidate race. Although the main analyses he carries out are a bit more complicated than what we cover in *QSS*, we can replicate his substantive findings using the multiple regression approach we've learned. 
+
+A description of the variables is listed below:
+
+--------------------------------------------------------------------------------
+Name                Description
+------------------- ------------------------------------------------------------
+`year`              Year the election was held
+
+`state`             State in which the election was held
+
+`district`          District in which the election was held (unique within state but not across states)
+
+`turnout`           The proportion of the black voting-age population in a district that votes in the general election
+
+`CVAP`              The proportion of a district's voting-age population that is black
+
+`candidate`         Binary variable coded "1" when the election includes a black candidate; "0" when the election does not include a black candidate
+
+--------------------------------------------------------------------------------
+
+## Question 1
+
+Fraga analyzes turnout data for four different racial and ethnic groups, but for this analysis we will focus on the data for black voters. Load  `blackturnout.csv`. Which years are included in the dataset?  How many different states are included in the dataset? 
+
+## Answer 1
+
+```{r}
+blackturnout <- read.csv("data/blackturnout.csv")
+dim(blackturnout)
+head(blackturnout)
+```
+
+The years included in the dataset are `r unique(blackturnout$year)`.  There are `r length(unique(blackturnout$state))` in the dataset.
+
+## Question 2
+
+Create a boxplot that compares turnout in elections with and without a co-ethnic candidate.  Be sure to use informative labels.  Interpret the resulting graph.
+
+## Answer 2
+
+Here's a way to do it with creating a factor: 
+  
+```{r}
+blackturnout$candidate.f <- as.factor(blackturnout$candidate)
+levels(blackturnout$candidate.f) <- c("No", "Yes")
+boxplot(turnout ~ candidate.f, data = blackturnout,
+        ylab = "Voter turnout (black voters)", 
+        xlab = "One or more co-ethnic candidates")
+```
+
+Here's another way to do it, without created a factor:
+
+```{r eval = FALSE}
+boxplot(blackturnout$turnout ~ blackturnout$candidate, 
+names = c("Non-Coethnic Candidate", "Coethnic Candidate"), 
+main = "Relationship between Blacks' Turnout and Coethnic Candidates",
+ylab = "Turnout Rate")
+```
+
+We find that the black turnout tends to be higher when a co-ethnic candidate is running.
+
+## Question 3
+
+Run a linear regression with black turnout as your outcome variable and candidate co-ethnicity as your predictor. Report the coefficient on your predictor and the intercept. Interpret these coefficients. Do not merely comment on the direction of the association (i.e., whether the slope is positive or negative). Explain what the value of the coefficients mean in terms of the units in which each variable is measured.  Based on these coefficients, what would you conclude about blacks voter turnout and co-ethnic candidates?
+
+## Answer 3
+
+```{r}
+fit.1 <- lm(turnout ~ candidate, data = blackturnout)
+fit.1
+```
+
+
+The intercept is `r round(coef(fit.1)["(Intercept)"], 3)` which means that in elections featuring no black candidates, `r round(coef(fit.1)["(Intercept)"], 3)*100`% of the black voting-age population are predicted to turn out. The coefficient on the candidate co-ethnicity variable is `r round(coef(fit.1)["candidate"], 3)`, which means that in elections with a black candidate black voter turnout is predicted to be about `r round(coef(fit.1)["candidate"],3)*100` percentage points higher on average. Thus, in elections featuring at least one black candidate, black voter turnout is predicted to be `r round(coef(fit.1)["(Intercept)"],3)*100 + round(coef(fit.1)["candidate"],3)*100`%. These results are consistent with the prediction that black voters turn out at a higher rate when a co-ethnic candidate is running.
+
+## Question 4
+
+You decide to investigate the results of the previous question a bit more carefully because the elections with co-ethnic candidates may differ from the elections without co-ethnic candidates in other ways.  Create a scatter plot where the x-axis is the proportion of co-ethnic voting-age population and the y-axis is black voter turnout. Color your points according to candidate co-ethnicity. That is, make the points for elections featuring co-ethnic candidates one color, and make the points for elections featuring no co-ethnic candidates a different color. Interpret the graph.
+
+## Answer 4
+
+```{r}
+blackturnout$col[blackturnout$candidate == 0] <- "blue"
+blackturnout$col[blackturnout$candidate == 1] <- "red"
+
+plot(blackturnout$CVAP, blackturnout$turnout, col = blackturnout$col, 
+     xlab = "Co-ethnic Voting-Age Population", ylab = "Black Voter Turnout")
+     legend(.37, .95, legend = c("Co-ethnic Candidate", "No Co-ethnic Candidates"),
+     col = c("red", "blue"), pch = c(1, 1))
+```
+
+The scatter plot shows two important things.  First, it shows that black candidates often run in districts that have large black voting-age populations.  Second, it shows that there is a positive relationship between black voting age population and black voter turnout (the correlation is `r round(cor(blackturnout$CVAP, blackturnout$turnout), 2)`).  Therefore, co-ethnic voting age population might be an important variable to include in the analysis.
+
+## Question 5
+
+Run a linear regression with black turnout as your outcome variable and with candidate co-ethnicity and co-ethnic voting-age population as your predictors.  Report the coefficients, including the intercept.  Interpret the coefficients on the two predictors, ignoring the intercept for now (you will interpret the intercept in the next question). Explain what each coefficient represents in terms of the units of the relevant variables.
+
+## Answer 5
+
+```{r}
+fit.2 <- lm(turnout ~ candidate + CVAP, data = blackturnout)
+fit.2
+```
+
+The coefficient of candidate co-ethnicity is `r round(coef(fit.2)["candidate"], 3)`, meaning that holding co-ethnic voting-age population at a fixed value, elections featuring a black candidate having lower black voter turnout by `r round(coef(fit.2)["candidate"], 3) * 100` percentage points on average.
+
+The coefficient on co-ethnic voting-age population is `r round(coef(fit.2)["CVAP"], 2)`. This indicates that if the proportion of a district is greater by 10 percentage points (i.e., 20% rather than 10% black), the black turnout is `r round(coef(fit.2)["CVAP"], 2)*100` percentage-point greater on average. In a 100%-black district featuring no black candidates, the average black voter turnout is predicted to be around `r round(coef(fit.2)["CVAP"], 2)*100 + round(coef(fit.2)["(Intercept)"], 2)*100`%.
+
+## Question 6
+
+Now interpret the intercept from the regression model with two predictors. Is this intercept a substantively important or interesting quantity?  Why or why not? 
+
+## Answer 6
+
+The intercept is `r round(coef(fit.2)["(Intercept)"],3)`. This means that the model predicts that elections featuring no black candidates in districts with no black people, black voter turnout will be `r round(coef(fit.2)["(Intercept)"],3)*100` on average. This is obviously impossible: districts with no black people will not have any black voters.
+
+This example illustrates that your regression might not be useful for predicting the outcome under certain scenarios.
+
+## Question 7
+
+Based on the regression model with one predictor, what do you conclude about the relationship between co-ethnic candidates and black voter turnout?  Based on the regression model with two predictors, what do you conclude about the relationshop between co-ethnic candidates and black voter turnout?  Please ignore issues of statistical significance for this question given that it will be covered in Chapter 7 of *QSS*.
+
+## Answer 7
+
+In the model with one predictor, black voter turnout is predicted to be higher in elections with one or more co-ethnic candidates. In the model with two predictors, the opposite is true.  That is, in the two predictor model, elections with one or more black candidates are predicted to have slightly lower turnout.  This second model is consistent with Fraga's claim.
+
+This is an example of a more general phenomenon where including a third variable could change the relationship between two variables. This is closely related to omitted variable bias.

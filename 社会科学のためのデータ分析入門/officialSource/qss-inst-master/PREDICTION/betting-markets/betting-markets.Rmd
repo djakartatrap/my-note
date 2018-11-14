@@ -1,0 +1,470 @@
+---
+title: "Prediction Based on Betting Markets"
+output: pdf_document
+---
+
+Earlier in the chapter, we studied the prediction of election outcomes
+using polls.  Here, we study the prediction of election outcomes based
+on betting markets.  In particular, we analyze data for the 2008 and
+2012 US presidential elections from the online betting company, called
+Intrade.  At Intrade, people trade contracts such as 'Obama to win
+the electoral votes of Florida.'  Each contract's market price
+fluctuates based on its sales.  Why might we expect betting markets
+like Intrade to accurately predict the outcomes of elections or of
+other events?  Some argue that the market can aggregate available
+information efficiently.  In this exercise, we will test this 
+*efficient market hypothesis* by analyzing the market prices of
+contracts for Democratic and Republican nominees' victories in each
+state.
+
+The data files for 2008 and 2012 are available in CSV format as
+`intrade08.csv` and `intrade12.csv`, respectively. The variables in these datasets are:
+
+--------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ----------------------------------------------------------
+ `day`               Date of the session 
+ 
+ `statename`         Full name of each state (including District of 
+                     Columbia in 2008) 
+ 
+ `state`             Abbreviation of each state (including District of 
+                     Columbia in 2008)
+ 
+ `PriceD`            Closing price (predicted vote share) of Democratic 
+                     Nominee's market
+ 
+ `PriceR`            Closing price (predicted vote share) of Republican 
+                     Nominee's market 
+ 
+ `VolumeD`           Total session trades of Democratic Party Nominee's 
+                     market
+ 
+ `VolumeR`           Total session trades of Republican Party Nominee's 
+                    market 
+--------------------------------------------------------------------------------
+
+Each row represents daily trading
+information about the contracts for either the Democratic or
+Republican Party nominee's victory in a particular state. 
+
+We will also
+use the election outcome data.  These data files are
+`pres08.csv` and `pres12.csv` with variables:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `state.name`         Full name of state (only in `pres2008`)
+ 
+ `state`              Two letter state abbreviation
+ 
+ `Obama`              Vote percentage for Obama
+ 
+ `McCain`             Vote percentage for McCain
+ 
+ `EV`                 Number of electoral college votes for this state
+--------------------------------------------------------------------------------
+ 
+We'll also use poll data from 2008 and 2012 in the files `polls08.csv` and `polls12.csv`,  The variables in the polling data are:
+  
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `state`              Abbreviated name of state in which poll was conducted 
+ 
+ `Obama`              Predicted support for Obama (percentage)
+ 
+ `Romney`             Predicted support for Romney (percentage) 
+ 
+ `Pollster`           Name of organization conducting poll 
+ 
+ `middate`            Middle of the period when poll was conducted 
+--------------------------------------------------------------------------------
+
+## Question 1
+
+We will begin by using the market prices on the day before the
+  election to predict the 2008 election outcome.  To do this, subset
+  the data such that it contains the market information for each state
+  and candidate only on the day before the election.  Note that in
+  2008 the election day was November 4.  We compare the closing prices
+  for the two candidates in a given state and classify a candidate
+  whose contract has a higher price as the predicted winner of that
+  state.  Which states were misclassified?  How does this compare to
+  the classification by polls presented earlier in this chapter?
+  Repeat the same analysis for the 2012 election, which was held on
+  November 6.  How well did the prediction market do in 2012 compared
+  to 2008?  Note that in 2012 some less competitive states have
+  missing data on the day before the election because there were no
+  trades on the Republican and Democratic betting markets. Assume
+  Intrade predictions would have been accurate for these states.
+
+## Answer 1
+
+We begin by analyzing the 2008 data.
+
+```{r}
+intrade08 <- read.csv("data/intrade08.csv")
+pres08 <- read.csv("data/pres08.csv")
+intresults08 <- merge(intrade08, pres08, by = "state")
+
+head(intresults08) # check the merged data
+## Create Days To Election Variable for 2008
+intresults08$DaysToElection <- as.Date("2008-11-04") - 
+    as.Date(intresults08$day)
+## Find difference in market prices to identify candidate 
+## with higher price
+intresults08$obama.intmarg <- intresults08$PriceD - 
+                                      intresults08$PriceR
+## Calculate actual result
+intresults08$obama.actmarg <- intresults08$Obama - 
+    intresults08$McCain
+## Subset last day before election
+latest08 <- intresults08[intresults08$DaysToElection == 1,]
+## Identify states classified and misclassified
+latest08$state[sign(latest08$obama.intmarg) != 
+                   sign(latest08$obama.actmarg)]
+```
+
+We repeat the same analysis for the 2012 data.  Note that there are
+some missing data
+
+```{r}
+intrade12 <- read.csv("data/intrade12.csv")
+pres12 <- read.csv("data/pres12.csv")
+intresults12 <- merge(intrade12, pres12, by = "state")
+
+## Create Days To Election Variable for 2012
+intresults12$DaysToElection <- as.Date("2012-11-06") - 
+    as.Date(intresults12$day)
+## Find difference in market prices to identify candidate 
+## with higher price
+intresults12$obama.intmarg <- intresults12$PriceD - 
+    intresults12$PriceR
+## Calculate actual result
+intresults12$obama.actmarg <- intresults12$Obama - 
+    intresults12$Romney
+## Subset last day before election
+latest12 <- intresults12[intresults12$DaysToElection == 1,]
+## Identify states classified and misclassified
+## missing data appear as `NA'
+latest12$state[sign(latest12$obama.intmarg) != 
+                   sign(latest12$obama.actmarg)]
+## Number of states with missing data in 2012
+sum(is.na(latest12$obama.intmarg))
+```
+
+In 2008, two states - Indiana and Missouri - out of 51 (including
+DC) were misclassified by the prediction markets. This outperforms
+the poll predictions from the chapter in which 3 out of 51 states were
+misclassified. In 2012, only Florida was misclassified by the
+Intrade market. There were 10 states with missing data which we assume
+would have been accurately classified.
+
+## Question 2
+
+How do the predictions based on the betting markets change over
+  time?  Implement the same classification procedure as above on each
+  of the last 90 days of the 2008 campaign rather than just the day
+  before the election.  Plot the predicted number of electoral votes
+  for the Democratic party nominee over this 90-day period.  The
+  resulting plot should also indicate the actual election result.
+  Note that in 2008, Obama won 365 electoral votes. Briefly comment on
+  the plot.
+
+## Answer 2
+
+```{r}
+par(cex = 1.25)
+## Empty vector to store predictions
+Obama.dailypredEV08 <- rep(NA, 90)
+for (i in 1:90) {
+    ## Subset by i days to the election    
+    daily.data  <- subset(intresults08, 
+                          subset =  (DaysToElection == i))
+    ## Sum Obama's EV for states with positive price margins   
+    Obama.dailypredEV08[i] <- 
+        sum(daily.data$EV[daily.data$obama.intmarg > 0])
+} 
+## Plot Predicted Electoral Votes from Intrade 
+plot(1:90, Obama.dailypredEV08,
+     main = "Daily Predicted Obama Electoral Votes",
+     xlab = "Days to Election", ylab = "Predicted Electoral Votes",
+     xlim = c(90, -1), ylim = c(260, 380))
+points(0, 365, pch = 19)
+abline(v = 0)
+abline(h = 365, lty = "dashed")
+text(80, 370, "Actual Result")  
+```
+  
+Intrade predictions became more accurate as the election neared. While
+the predictions were under-estimating Obama's total number of
+electoral votes by 50 -- 100 votes with two to three months left in
+the campaign, the prediction markets came within 10 electoral votes of
+the actual total 20 days before the election.
+
+## Question 3
+
+Repeat the previous exercise but this time use the seven-day
+  *moving-average* price, instead of the daily price, for each
+  candidate within a state.  This can be done with a
+  loop. For a given day, we take the average of the Session Close
+  prices within the past seven days (including that day).  To answer
+  this question, we must first compute the seven-day average within
+  each state. Next, we sum the electoral votes for the states Obama is
+  predicted to win.  Using the `tapply` function will allow us
+  to efficiently compute the predicted winner for each state on a
+  given day.
+  
+## Answer 3
+
+```{r}
+par(cex = 1.25)
+## Empty vectors to store predictions
+Obama.predEV <- rep(NA, 90)
+for (i in 1:90) {
+  ## Subset 7 days around day i    
+  week.data  <- subset(intresults08, 
+                       subset =  (DaysToElection <= (90 - i + 7)) & 
+                           (DaysToElection > (90 - i)))
+  ## Take average price margin within each state
+  ## Bind this to the number of EV for each state
+  week.means <- cbind(tapply(week.data$obama.intmarg, 
+                             week.data$state, mean, na.rm = TRUE),
+                      tapply(week.data$EV, week.data$state, 
+                             mean, na.rm = TRUE))
+  ## Subset only states where Obama is predicted to win
+  week.obwin <- week.means[week.means[, 1] > 0, ]
+  ## Sum Obama's predicted EV on a given day     
+  Obama.predEV[i] <- sum(week.obwin[, 2])
+} 
+## Plot Predicted Electoral Votes from intrade 
+plot(90:1, Obama.predEV,
+     main = "7-Day Average Predicted Obama Electoral Votes",
+     xlab = "Days to Election", ylab = "Predicted Electoral Votes",
+     xlim = c(90, -1), ylim = c(260, 380))
+points(0, 365, pch = 19)
+abline(v = 0)
+abline(h = 365, lty = "dashed")
+text(80, 368, "Actual Result")
+```
+
+Like the previous exercise, the predictions underestimate Obama's
+total number of electoral votes earlier in the campaign. However, 30
+days before the election, the electoral vote predictions become very
+accurate -- within a single vote of the actual total. These results
+are more stable than using the single-day predictions from the
+previous exercise.
+
+## Question 4
+
+Create a similar plot for 2008 state-wide poll predictions using
+  the data file `polls08.csv`. Notice that polls are not conducted daily
+  within each state. Therefore, within a given state for each of the
+  last 90 days of the campaign, we compute the average margin of
+  victory from the most recent poll(s) conducted. If multiple polls
+  occurred on the same day, average these polls. Based on the most
+  recent predictions in each state, sum Obama's total number of
+  predicted electoral votes. One strategy to answer this question is
+  to program two loops - an inner loop with 51 iterations for each
+  state and an outer loop with 90 iterations for each day.
+  
+## Answer 4
+
+```{r}
+par(cex = 1.25)
+## Load Poll data
+polls08 <- read.csv("data/polls08.csv")
+pollresults08 <- merge(polls08, pres08, by = "state")
+## Calculate margins variables. 
+## Note the suffixes .x and .y from the merge
+pollresults08$obama.pollmarg <-pollresults08$Obama.x - 
+    pollresults08$McCain.x
+## Create DaysToElection variable
+pollresults08$DaysToElection <- as.Date("2008-11-04") - 
+    as.Date(pollresults08$middate)
+## Empty vectors to store predicted EV
+totpollEV <- rep(NA, 90)    
+st.names <- unique(pollresults08$state) # To subset by state
+## Iterate through each of 90 j days
+for(j in 1:90){
+  ## Use this object to compute total EV Obama is predicted to win 
+  ## Counter resets to 0 after each iteration so that the total 
+  ## number of Obama's predicted EV is calculated for each day
+  counter <- 0
+  ## Subset only observations j or more days from the election    
+  near.data  <- subset(pollresults08, 
+                       subset =  (DaysToElection >= j))
+   ## Iterate through each of 51 i states
+   for(i in 1:51) {
+       ## Subset within state 
+       state.data <- subset(near.data, subset = (state == st.names[i]))
+       ## Subset most recent polls
+       state.data <- 
+           subset(state.data, 
+                  subset = (DaysToElection == 
+                                min(state.data$DaysToElection)))
+       ## If Obama is predicted to win, add EV to the counter   
+       if(mean(state.data$obama.pollmarg) > 0) {
+           ## Overwrite the counter to update total after each state   
+           counter <- counter + mean(state.data$EV)
+       } 
+   }
+  ## Store predicted electoral votes from each day
+  totpollEV[j] <- counter   
+}
+## Plot Predicted Electoral Votes from Polls
+plot(1:90, totpollEV,
+     main = "Poll Predicted Obama Electoral Votes",
+     xlab = "Days to Election", ylab = "Predicted Electoral Votes",
+     xlim = c(90, -1), ylim = c(260, 380))
+points(0, 365, pch = 19)
+abline(v = 0)
+abline(h = 365, lty = "dashed")
+text(80, 368, "Actual Result")
+```
+
+Predictions appear more erratic in polls than in prediction markets.
+However, within the last month of the campaign, polls consistently
+predicted Obama would win.  The week prior to the election, the polls
+predicted outcomes within 16 votes of Obama's actual total number of
+electoral votes in the election.  Nevertheless, over the same time
+period, the prediction markets outperform polls, predicting within one
+electoral vote of the actual total. 
+
+## Question 5
+
+What is the relationship between the price margins of the
+  Intrade market and the actual margin of victory? Using only the
+  market data from the day before the election in 2008, regress
+  Obama's actual margin of victory in each state on Obama's price
+  margin from the Intrade markets. Similarly, in a separate analysis,
+  regress Obama's actual margin of victory on the Obama's predicted
+  margin from the latest polls within each state. Interpret the
+  results of these regressions.
+
+## Answer 5
+
+```{r}
+## Regression from Intrade
+int.fit08 <- lm(obama.actmarg ~ obama.intmarg, data = latest08)
+coef(int.fit08)
+## Regression from polls
+## Subset latest poll predictions
+poll.pred <- rep(NA, 51)
+names(poll.pred) <- as.character(pres08$state)
+for(i in 1:51){
+    state.data <- subset(pollresults08, subset = (state == pres08$state[i]))
+    ## Subset latest polls 
+    ## Note alternative code using brackets for subsetting a dataframe
+    latest <- state.data[state.data$DaysToElection == 
+                             min(state.data$DaysToElection), ]
+    ## Store predicted margins
+    poll.pred[i] <- mean(latest$obama.pollmarg)
+}
+## Create dependent variable with the actual margin
+pres08$obama.actmarg <- pres08$Obama - pres08$McCain
+## Run regression
+polls.fit08 <- lm(pres08$obama.actmarg ~ poll.pred)
+coef(polls.fit08)
+## Rsquare
+summary(int.fit08)$r.squared
+summary(polls.fit08)$r.squared
+```
+
+Both the Intrade predicted margin of victory for Obama and the latest
+polls' predicted margin are positively associated with the actual
+margin of victory for Obama across states.  That is, the actual margin
+of victory for Obama is estimated to increase as Obama's predicted
+margin increases.  In addition, based on the comparison of $R^2$
+values, the polling model predicted the outcome better than Intrade.
+
+
+## Question 6
+
+
+Do the 2008 predictions of polls and Intrade accurately predict
+  each state's 2012 elections results?  Using the fitted regressions
+  from the previous question, forecast Obama's actual margin of
+  victory for the 2012 election in two ways.  First, use the 2012
+  Intrade price margins from the day before the election as the
+  predictor in each state.  Recall that the 2012 Intrade data do not
+  contain market prices for all states. Ignore states without data.
+  Second, use the 2012 poll predicted margins from the latest polls in
+  each state as the predictor, found in `polls12.csv`.
+
+## Answer 6
+
+We first compute the predictions based on the Intrade data.  We plot
+the predicted state-wide election results against the actual
+results. We also examine which states are misclassified.
+
+```{r}
+par(cex = 1.25)
+## Compute 2012 forecast from Intrade
+pred.int <- data.frame(obama.intmarg = latest12$obama.intmarg)
+forecast.int <- predict(int.fit08, newdata = pred.int) 
+names(forecast.int) <- latest12$state
+## Plot the actual versus forecasted predictions
+plot(forecast.int, latest12$obama.actmarg, type = "n", xlim = c(-50, 50),
+     ylim = c(-50, 50), xlab = "Forecasted Obama Margin",
+     ylab = "Actual Obama Margin by State",
+     main = "Actual vs. Forecasted 2012 Results: Intrade")
+text(forecast.int, latest12$obama.actmarg, latest12$state) 
+abline(h = 0)
+abline(v = 0)
+## Which states misclassified?
+latest12$state[sign(forecast.int) != sign(latest12$obama.actmarg)]
+```
+
+Next, we repeat the same analysis using the polling data. 
+
+```{r}
+par(cex = 1.25)
+## Load 2012 Polls Data
+polls12 <- read.csv("data/polls12.csv", header = T)
+## Merge with 2012 results to get EV data
+pollresults12 <- merge(polls12, pres12, by = "state")
+## Calculate margins variable 
+pollresults12$obama.pollmarg <-pollresults12$Obama.x - 
+    pollresults12$Romney.x
+## Create DaysToElection variable
+pollresults12$DaysToElection <- as.Date("2012-11-06") - 
+    as.Date(pollresults12$middate)
+## Subset latest poll predictions
+st.names12 <- unique(pollresults12$state) # To subset by state
+length(st.names12) # number of states in the data
+## loop starts here
+poll.pred12 <- rep(NA, 47)
+names(poll.pred12) <- as.character(st.names12)
+for(i in 1:47){
+  state.data <- subset(pollresults12, subset = (state == st.names12[i]))  
+  ## Subset latest polls 
+  latest <- state.data[state.data$DaysToElection == 
+                           min(state.data$DaysToElection), ]
+  ## Store predicted margins
+  poll.pred12[i] <- mean(latest$obama.pollmarg)
+}
+## Compute 2012 forecast from polls
+pred.polls <- data.frame(poll.pred = poll.pred12)
+forecast.polls <- predict(polls.fit08, 
+                          newdata = pred.polls) 
+names(forecast.polls) <- names(poll.pred12)
+## Plot the actual versus forecasted predictions
+plot(forecast.polls, poll.pred12, type = "n", xlim = c(-50, 50),
+     ylim = c(-50, 50), xlab = "Forecasted Obama Margin",
+     ylab = "Actual Obama Margin by State",
+     main = "Actual vs. Forecasted 2012 Results: Polls")
+text(forecast.polls, poll.pred12, names(poll.pred12))
+abline(h = 0)
+abline(v = 0)
+## Which states misclassified?
+names(poll.pred12)[!is.na(forecast.polls) & sign(forecast.polls) != sign(poll.pred12)]
+```
+
+Both the Intrade and poll forecasts for 2012 predict the actual 2012
+outcomes very accurately, although the Intrade forecasts for less
+competitive states tend to exaggerate the actual margins in 2012. Both the
+polling and Intrade forecasts for 2012 election accurately classify all states 
+but Florida.

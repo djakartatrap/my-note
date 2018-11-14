@@ -1,0 +1,267 @@
+---
+title: "Changing Minds on Gay Marriage"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+In this exercise, we analyze the data from two experiments in which
+households were canvassed for support on gay marriage.
+
+This exercise is based on: LaCour, M. J., and
+D. P. Green. 2014. “[When Contact Changes Minds: An Experiment on
+Transmission of Support for Gay
+Equality.](http://dx.doi.org/10.1126/science.1256151)” *Science*
+346(6215): 1366–69.
+
+Note that the original study was later retracted due to allegations of
+fabricated data.  We will revisit this issue in the follow-up
+exercise.  In this exercise, however, we analyze the original data
+while ignoring the allegations.
+
+Canvassers were given a script leading to conversations that averaged
+about twenty minutes.  A distinctive feature of this study is that gay
+and straight canvassers were randomly assigned to households and
+canvassers revealed whether they were straight or gay in the course of
+the conversation.  The experiment aims to test the 'contact
+hypothesis,' which contends that out-group hostility (towards gays in
+this case) diminishes when people from different groups interact with
+one another.
+
+The data file is `gay.csv`, which is a CSV
+file. The names and descriptions of
+variables are:
+
+ -------------------- ----------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `study`              Study (1 or 2) 
+ 
+ `treatment`          Treatment assignment: `No contact`, 
+                      `Same-Sex Marriage Script by Gay Canvasser`,
+                      `Same-Sex Marriage Script by Straight Canvasser`,
+                      `Recycling Script by Gay Canvasser`, and
+                      `Recycling Script by Straight Canvasser`
+ 
+ `wave`               Survey wave (1-7). Note that Study 2 lacks wave 5 and 6.
+ 
+ `ssm`                Support for gay marriage (1 to 5).  
+                      Higher scores indicate more support.
+ -------------------------------------------------------------------------------
+
+Each observation of this data set is a respondent giving a response to
+a five-point survey item on same-sex marriage.  There are two
+different studies in this data set, involving interviews during 7
+different time periods (i.e. 7 waves).  In both studies, the first
+wave consists of the interview before the canvassing treatment occurs.
+
+## Question 1
+
+Using the baseline interview wave before the treatment is
+  administered, examine whether randomization was properly conducted.
+  Base your analysis on the three groups of Study 1: 'Same-Sex
+  Marriage Script by Gay Canvasser,' 'Same-Sex Marriage Script by
+  Straight Canvasser' and 'No Contact.'  Briefly comment on the
+  results.
+
+## Answer 1
+
+```{r}
+gay <- read.csv("data/gay.csv")
+
+# Study 1
+w1_gay <- subset(gay, wave == 1 & study == 1 & 
+                 treatment == "Same-Sex Marriage Script by Gay Canvasser")
+w1_straight <- subset(gay, wave == 1 & study == 1 & 
+                 treatment == "Same-Sex Marriage Script by Straight Canvasser")
+w1_none <- subset(gay, wave == 1 & study == 1 & treatment == "No Contact")
+
+mean(w1_gay$ssm)
+mean(w1_straight$ssm)
+mean(w1_none$ssm)
+```
+
+The results show that before treatment, all three treatment groups
+show similar levels of baseline support for gay marriage on average.
+Thus, the randomization appears to have been done correctly.
+
+## Question 2
+
+The second wave of survey was implemented two months after the
+  canvassing.  Using Study 1, estimate the average treatment effects
+  of gay and straight canvassers on support for same-sex marriage,
+  separately.  Give a brief interpretation of the results.
+
+## Answer 2
+
+```{r}
+# Study 1
+w2_gay <- subset(gay, wave == 2 & study == 1 & 
+                 treatment == "Same-Sex Marriage Script by Gay Canvasser")
+w2_straight <- subset(gay, wave == 2 & study == 1 & 
+                 treatment == "Same-Sex Marriage Script by Straight Canvasser")
+w2_none <- subset(gay, wave == 2 & study == 1 & treatment == "No Contact")
+
+# ATE for gay canvassers
+mean(w2_gay$ssm) - mean(w2_none$ssm)
+# ATE for straight canvassers
+mean(w2_straight$ssm) - mean(w2_none$ssm)
+```
+
+Approval of gay marriage increased on average by 
+`r round(mean(w2_gay$ssm) - mean(w2_none$ssm), 3)` for gay canvassers and
+by `r round(mean(w2_straight$ssm) - mean(w2_none$ssm), 3)` for straight 
+canvassers.
+
+## Question 3
+
+The study contained another treatment that involves contact, but
+  does not involve using the gay marriage script.  Specifically, the
+  authors used a script to encourage people to recycle.  What is the
+  purpose of this treatment?  Using Study 1 and wave 2, compare
+  outcomes from the treatment 'Same-Sex Marriage Script by Gay
+  Canvasser' to 'Recycling Script by Gay Canvasser.'  Repeat the
+  same for straight canvassers, comparing the treatment 'Same-Sex
+  Marriage Script by Straight Canvasser' to 'Recycling Script by
+  Straight Canvasser.'  What do these comparisons reveal?  Give a
+  substantive interpretation of the results.
+
+## Answer 3
+
+This treatment addresses the possibility that simply
+contacting someone might cause them to act differently.  This is
+potentially a concern because when canvassing you are both contacting
+someone and also deivering a script.  To rule out the
+possibility that contact alone drives changes in opinion on gay
+marriage so we change the baseline from no contact to a script
+that is unrelated to gay marriage.
+
+```{r}
+# New baseline for gay canvassers
+w2_gay_recyling <- subset(gay, wave == 2 & study == 1 & 
+                          treatment == "Recycling Script by Gay Canvasser")
+# ATE
+mean(w2_gay$ssm) - mean(w2_gay_recyling$ssm)
+
+# New baseline for straight canvassers
+w2_straight_recycling <- subset(gay, wave == 2 & study == 1 & 
+             treatment == "Recycling Script by Straight Canvasser")
+# ATE
+mean(w2_straight$ssm) - mean(w2_straight_recycling$ssm)
+```
+
+The analysis shows that whether delivered by gay or straight
+canvassers, the gay marriage script changes opinion positively
+relative to the recycling script baseline although the effect of 
+the same-sex marriage script is much larger for straight canvassers.
+Changes in opinion that we saw induced by the same-sex
+marriage script earlier are therefore unlikely to be due to contact alone.  
+
+## Question 4
+
+In Study 1, the authors reinterviewed the respondents 6
+  different times (in waves 2 to 7) after treatment, at two month
+  intervals.  The last interview in wave 7 occurs one year after
+  treatment.  Do the effects of canvassing last?  If so, under what
+  conditions?  Answer these questions by separately computing the
+  average effects of straight and gay canvassers with the same-sex
+  marriage script for each of the subsequent waves (relative to the
+  control condition).
+
+## Answer 4
+
+```{r}
+s1_gay <- subset(gay, study == 1 & 
+                 treatment == "Same-Sex Marriage Script by Gay Canvasser")
+s1_straight <- subset(gay, study == 1 & 
+           treatment == "Same-Sex Marriage Script by Straight Canvasser")
+s1_none <- subset(gay, study == 1 & treatment == "No Contact")
+
+s1_baseline <- tapply(s1_none$ssm, s1_none$wave, mean)
+# ATEs for gay canvassers
+tapply(s1_gay$ssm, s1_gay$wave, mean) - s1_baseline
+# ATEs for straight canvassers
+tapply(s1_straight$ssm, s1_straight$wave, mean) - s1_baseline
+```
+
+We find that the effects of both straight and gay canvassers with
+same-sex marriage script appear to last for a while.  But, most
+notably, the effect of gay canvassers is quite substantial even at
+waves six and seven while the effect of straight canvassers starts
+declining at wave six and reduces to around zero by wave seven.
+
+## Question 5
+
+The researchers conducted a second study to replicate the core
+  results of the first study.  In this study, same-sex marriage
+  scripts are only given by gay canvassers.  For Study 2, use the
+  treatments 'Same-Sex Marriage Script by Gay Canvasser' and 'No
+  Contact' to examine whether randomization was appropriately
+  conducted.  Use the baseline support from wave 1 for this analysis.
+ 
+## Answer 5 
+ 
+```{r}
+gay2.w1 <- subset(gay, (wave == 1) & (study == 2) & 
+               (treatment == "Same-Sex Marriage Script by Gay Canvasser"))
+none2.w1 <- subset(gay, (wave == 1) & (study == 2) & (treatment == "No Contact"))
+mean(gay2.w1$ssm)
+mean(none2.w1$ssm)
+```
+
+Randomization appears to be done properly, as the two treatment groups
+show virtually no average difference in pre-existing attitudes towards
+gay marriage. 
+
+## Question 6
+
+For Study 2, estimate the treatment effects of gay canvassing
+  using data from wave 2.  Are the results consistent with those of
+  Study 1?
+
+## Answer 6
+
+```{r}
+gay2.w2 <- subset(gay, (wave == 2) & (study == 2) & 
+                      (treatment == "Same-Sex Marriage Script by Gay Canvasser"))
+none2.w2 <- subset(gay, (wave == 2) & (study == 2) & 
+                       (treatment == "No Contact"))
+mean(gay2.w2$ssm)
+mean(none2.w2$ssm)
+```
+
+We see that gay canvassers produce an effect of approximately
+`r round(mean(gay2.w2$ssm)- mean(none2.w2$ssm), 2)` points
+(`r round(mean(gay2.w2$ssm),
+  2)`-`r round(mean(none2.w2$ssm),
+  2)`) in favor of gay marriage.  This is consistent with the finding
+of Study 1.
+
+## Question 7
+
+Using Study 2, estimate the average effect of gay canvassing at
+  each subsequent wave and observe how it changes over time.  Note
+  that Study 2 did not have 5th or 6th wave, but the 7th wave occurred
+  one year after treatment as in Study 1.  Draw an overall conclusion
+  from both Study 1 and Study 2.
+
+## Answer 7
+
+```{r}
+gay2 <- 
+    subset(gay, (study == 2) & 
+               (treatment == "Same-Sex Marriage Script by Gay Canvasser"))
+none2 <- 
+    subset(gay, (study == 2) & (treatment == "No Contact"))
+tapply(gay2$ssm, gay2$wave, mean) - 
+    tapply(none2$ssm, none2$wave, mean)
+```
+
+In both studies, gay canvassing produces a positive effect on
+attitudes towards gay marriage, and the effect persists even one year
+after treatment.  This experiment thus provides strong evidence in
+support of the 'contact hypothesis,' which contends that out-group
+hostility (towards gays in this case) diminishes when people from
+different groups interact with one another.
+
+

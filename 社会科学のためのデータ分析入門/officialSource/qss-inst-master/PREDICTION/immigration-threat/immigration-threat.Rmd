@@ -1,0 +1,191 @@
+---
+title: 'Immigration attitudes: the role of economic and cultural threat'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Why do the majority of voters in the U.S. and other developed countries oppose increased immigration? According to the conventional wisdom and many economic theories, people simply do not want to face additional competition on the labor market (*economic threat* hypothesis). Nonetheless, most comprehensive empirical tests have failed to confirm this hypothesis and it appears that people often support policies that are against their personal economic interest. At the same time, there has been growing evidence that immigration attitudes are rather influenced by various deep-rooted ethnic and cultural stereotypes (*cultural threat* hypothesis). Given the prominence of workers' economic concerns in the political discourse, how can these findings be reconciled? 
+
+This exercise is based in part on Malhotra, N., Margalit, Y. and Mo, C.H., 2013. "[Economic Explanations for Opposition to Immigration: Distinguishing between Prevalence and Conditional Impact](https://dx.doi.org/10.1111/ajps.12012)." *American Journal of Political Science*, Vol. 38, No. 3, pp. 393-433.
+
+The authors argue that, while job competition is not a prevalent threat and therefore may not be detected by aggregating survey responses, its *conditional* impact in selected industries may be quite sizable. To test their hypothesis, they conduct a unique survey of Americans' attitudes toward H-1B visas. The plurality of H-1B visas are occupied by Indian immigrants, who are skilled but ethnically distinct, which enables the authors to measure a specific skill set (high technology) that is threatened by a particular type of immigrant (H-1B visa holders). The data set `immig.csv` has the following variables:
+
+-----------------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- -------------------------------------------------------
+ `age`                            Age (in years)
+ 
+ `female`                         `1` indicates female; `0` indicates male
+ 
+ `employed`                       `1` indicates employed; `0` indicates unemployed  
+ 
+ `nontech.whitcol`                `1` indicates non-tech white-collar work (e.g., law)
+ 
+ `tech.whitcol`                   `1` indicates high-technology work
+ 
+ `expl.prejud`                    Explicit negative stereotypes about Indians (continuous 
+                                  scale, 0-1)
+ 
+ `impl.prejud`                    Implicit bias against Indian Americans (continuous scale, 
+                                  0-1)
+                                  
+ `h1bvis.supp`                    Support for increasing H-1B visas (5-point scale, 0-1)
+ 
+ `indimm.supp`                    Support for increasing Indian immigration (5-point scale, 
+                                  0-1)
+-----------------------------------------------------------------------------------------
+
+The main outcome of interest (`h1bvis.supp`) was measured as a following survey item: "Some people have proposed that the U.S. government should increase the number of H-1B visas, which are allowances for U.S. companies to hire workers from foreign countries to work in highly skilled occupations (such as engineering, computer programming, and high-technology). Do you think the U.S. should increase, decrease, or keep about the same number of H-1B visas?" Another outcome (`indimm.supp`) similarly asked about the "the number of immigrants from India." Both variables have the following response options: `0` = "decrease a great deal", `0.25` = "decrease a little", `0.5` = "keep about the same", `0.75` = "increase a little", `1` = "increase a great deal".
+
+To measure explicit stereotypes (`expl.prejud`), respondents were asked to evaluate Indians on a series of traits: capable, polite, hardworking, hygienic, and trustworthy. All responses were then used to create a scale lying between `0` (only positive traits of Indians) to `1` (no positive traits of Indians). Implicit bias (`impl.prejud`) is measured via the *Implicit Association Test* (IAT) which is an experimental method designed to gauge the strength of associations linking social categories (e.g., European vs Indian American) to evaluative anchors (e.g., good vs bad). Individual who are prejudiced against Indians should be quicker at making classifications of faces and words when *European American* (*Indian American*) is paired with *good* (*bad*) than when *European American* (*Indian American*) is paired with *bad* (*good*). If you want, you can test yourself [here](https://implicit.harvard.edu/implicit/takeatest.html).
+
+## Question 1
+
+Start by examining the distribution of immigration attitudes (as factor variables). What is the proportion of people who are willing to increase the quota for high-skilled foreign professionals (`h1bvis.supp`) or support immigration from India (`indimm.supp`)?
+
+Now compare the distribution of two distinct measures of cultural threat: explicit stereotyping about Indians (`expl.prejud`) and implicit bias against Indian Americans (`impl.prejud`). In particular, create a scatterplot, add a linear regression line to it, and calculate the correlation coefficient. Based on these results, what can you say about their relationship?
+
+## Answer 1
+
+```{r}
+immig <- read.csv("data/immig.csv")
+
+prop.table(table(immig$h1bvis.supp))
+prop.table(table(immig$indimm.supp))
+```
+
+About half of all voters would like to decrease the number of H-1B visas and Indian immigration (30+23=53% and 29+18=47% respectively) and about a third would like to maintain the status quo (30% and 40%). At the same time, only a minority of voters would like to see immigration increased (10+6=16% and 10+3=13%).
+
+```{r}
+plot(jitter(immig$expl.prejud, 3), immig$impl.prejud, xlab = "Explicit prejudice", ylab = "Implicit prejudice")
+fit1 <- lm(expl.prejud ~ impl.prejud, data = immig)
+abline(fit1, col = "red")
+legend(x='topright', bty = "n", legend=paste('Cor =', round(cor(immig$expl.prejud, immig$impl.prejud, use = "complete.obs"), 2)))
+```
+
+The scatterplot shows that people of low or moderate explicit prejudice are more or less equally likely to have any level of implicit prejudice. However, it is instructive that almost none of the respondents of high explicit prejudice have low implicit prejudice. Overall, while the relationship between implicit and explicit prejudice is positive (as can be expected), the correlation coefficient is very low (<0.1) which may indicate that these are in fact two distinct attitudinal constructs.
+
+## Question 2
+
+Compute the correlations between all four policy attitude and cultural threat measures. Do you agree that cultural threat is an important predictor of immigration attitudes as claimed in the literature?
+
+If the labor market hypothesis is correct, opposition to H-1B visas should also be more pronounced among those who are economically threatened by this policy such as individuals in the high-technology sector. At the same time, tech workers should not be more or less opposed to general Indian immigration because of any *economic* considerations. First, regress H-1B and Indian immigration attitudes on the indicator variable for tech workers (`tech.whitcol`). Do the results support the hypothesis? Is the relationship different from the one involving cultural threat and, if so, how?
+
+## Answer 2
+
+```{r}
+cor(immig[c("expl.prejud", "impl.prejud", "h1bvis.supp", "indimm.supp")], use = "complete.obs")
+```
+
+Both measures of cultural threat are negatively related (from -0.11 to -0.32) to both measures of immigration support. The correlation is particularly strong (-0.32) when it comes to the link between stereotypes about Indians and attitudes toward Indian immigration.
+
+```{r}
+lm(h1bvis.supp ~ tech.whitcol, data = immig)
+lm(indimm.supp ~ tech.whitcol, data = immig)
+```
+
+Overall, the results provide some support for the labor market hypothesis. As expected, while tech workers are slightly more opposed to H-1B visas, they are not more opposed to Indian immigration in general (compare to those who are not tech workers). As one may expect, this relationship is also in contrast with the one of cultural threat which is negatively related to **both** measures of immigration attitudes.
+
+## Question 3
+
+When examining hypotheses, it is always important to have an appropriate comparison group. One may argue that comparing tech workers to everybody else as we did in Question 2 may be problematic due to a variety of confounding variables (such as skill level and employment status). First, create a single factor variable `group` which takes a value of `tech` if someone is employed in tech, `whitecollar` if someone is employed in other "white-collar" jobs (such as law or finance), `other` if someone is employed in any other sector, and `unemployed` if someone is unemployed. Then, compare the support for H-1B across these conditions by using the linear regression. Interpret the results: is this comparison more or less supportive of the labor market hypothesis than the one in Question 2?
+
+Now, one may also argue that those who work in the tech sector are disproportionately young and male which may confound our results. To account for this possibility, fit another linear regression but also include `age` and `female` as pre-treatment covariates (in addition to `group`). Does it change the results and, if so, how? 
+
+Finally, fit a linear regression model with all threat indicators (`group`, `expl.prejud`, `impl.prejud`) and calculate its $R^2$. How much of the variation is explained? Based on the model fit, what can you conclude about the role of threat factors?
+
+## Answer 3
+
+```{r}
+immig$group <- NA
+immig$group[immig$tech.whitcol==1 & immig$nontech.whitcol==0 & immig$employed==1] <- 0
+immig$group[immig$tech.whitcol==0 & immig$nontech.whitcol==1 & immig$employed==1] <- 1
+immig$group[immig$tech.whitcol==0 & immig$nontech.whitcol==0 & immig$employed==1] <- 2
+immig$group[immig$employed==0] <- 3
+immig$group <- as.factor(immig$group)
+levels(immig$group) <- c("Tech WC", "Non-tech WC", "Other workers", "Unemployed")
+
+lm(h1bvis.supp ~ group, data = immig)
+```
+Overall, the results corroborate the labor market hypothesis even further: economic threat appears to be even more predictive of H-1B support when we compare tech workers to other high-skilled workers as opposed to people in general. Specifically, the average support level is 0.3 among tech workers, 0.4 among high-skilled workers, and 0.35 among low-skilled workers or unemployed.  
+
+```{r}
+lm(h1bvis.supp ~ group + female + age, data = immig)
+```
+
+As may be expected given Question 3, the addition of age and gender increased the intercept which is the expected mean level of immigration support when all covariates are set to zero. At the same time, the difference in coefficients between tech workers and other employment categories increased further which provides even more support for the labor-market hypothesis.  
+
+```{r}
+m.full <- lm(h1bvis.supp ~ group + impl.prejud + expl.prejud, data = immig)
+summary(m.full)$r.squared
+```
+
+The full model with all economic and cultural threat factors defined in the study only explains about 4% of variation in H-1B visa support. In other words, even after accounting for one's sector employment, as well implicit or explicit prejudice, most of the variation in immigration attitudes remains unexplained. Consequently, we can conclude that-while being *predictive*-neither cultural nor economic threat is close to be *deterministic* of immigration policy preferences.
+
+## Question 4
+
+Besides economic and cultural threat, many scholars also argue that gender is an important predictor of immigration attitudes. While there is some evidence that women are slightly less opposed to immigration than men, it may also be true that gender conditions the very effect of other factors such as cultural threat. To see if it is indeed the case, fit a linear regression of H-1B support on the interaction between gender and implicit prejudice. Then, create a plot with the predicted level of H-1B support (y-axis) across the range of implicit bias (x-axis) by gender. Considering the results, would you agree that gender alters the relationship between cultural threat and immigration attitudes? 
+
+Age is another important covariate. Fit two regression models in which H-1B support is either a linear or quadratic function of age. Compare the results by plotting the predicted levels of support (y-axis) across the whole age range (x-axis). Would you say that people become more opposed to immigration with age?
+
+## Answer 4
+
+```{r}
+m.h1b <- lm(h1bvis.supp ~ impl.prejud + female + impl.prejud*female, data = immig)
+h1b.prej.male <- data.frame(impl.prejud = seq(from = 0, to = 1, by = .01), female = 0)
+h1b.prej.female <- data.frame(impl.prejud = seq(from = 0, to = 1, by = .01), female = 1)
+pred.h1b.prej.male <- predict(m.h1b, newdata = h1b.prej.male)
+pred.h1b.prej.female <- predict(m.h1b, newdata = h1b.prej.female)
+
+plot(x = seq(from = 0, to = 1, by = .01), y = pred.h1b.prej.male, type = "l", xlim = c(0, 1), ylim = c(0, 0.6), xlab = "Implicit prejudice", ylab = "Predicted H-1B support")
+lines(x = seq(from = 0, to = 1, by = .01), y = pred.h1b.prej.female, lty = "dashed") 
+text(0.6, 0.45, "Male") 
+text(0.3, 0.3, "Female")
+```
+
+Considering the results, we can conclude that the relationship between H-1B support and cultural threat is indeed conditional on gender. Specifically, while women are on average more opposed to immigration, the link between cultural threat and H-1B support is also weaker among women than men (which is indicated by a less steeper regression slope). As a result, according to the model with interaction effects, we would expect to see gender differences in immigration support among unprejudiced but not highly prejudiced voters.
+
+```{r}
+m.age <- lm(h1bvis.supp ~ age, data = immig)
+m.age.sq <- lm(h1bvis.supp ~ age + I(age^2), data = immig)
+pred.age <- predict(m.age, newdata = data.frame(age = seq(from = 18, to = 80, by = 1)))
+pred.age.sq <- predict(m.age.sq, newdata = data.frame(age = seq(from = 18, to = 80, by = 1)))
+par(mfrow=c(1,1))
+plot(x = 18:80, y = pred.age, type = "l", xlim = c(13, 85), ylim = c(0, 0.6), xlab = "age", ylab = "Predicted immigration support")
+lines(x = 18:80, y = pred.age.sq, lty = "dashed")
+text(30, 0.5, "Quadratic") 
+text(20, 0.35, "Linear")
+```
+
+When we model H-1B support as a simple linear function of age, we can see that older people are more opposed to immigration. However, adding a quadratic term for age to the model complicates the relationship. In particular, we can see that age is negatively related to H-1B support only below the middle of the age range (and positively related above). Consequently, in our second model we would expect voters of middle age to have the most negative immigration attitudes across different age categories.
+
+## Question 5 (Optional)
+
+To corroborate your conclusions with regard to cultural threat, create separate binary variables for both prejudice indicators based on their median value (`1` if `>` than the median) and then compare average H-1B and Indian immigration attitudes (as numeric variables) depending on whether someone is implicitly or explicitly prejudiced (or both). What do these comparisons say about the role of cultural threat?
+
+What about the role of economic threat? One may argue that tech workers are simply more or less prejudiced against Indians than others. To account for this possibility, investigate whether economic threat is in fact distinguishable from cultural threat as defined in the study. In particular, compare the distribution of cultural threat indicator variable using the Q-Q plot depending on whether someone is in the high-technology sector. Would you conclude that cultural and economic threat are really distinct?
+
+## Answer 5
+
+```{r}
+immig$med.expl.prejud <- ifelse(immig$expl.prejud > median(immig$expl.prejud, na.rm = TRUE), 
+                                1, ifelse(immig$expl.prejud <= median(immig$expl.prejud, na.rm = TRUE), 0, NA))
+immig$med.impl.prejud <- ifelse(immig$impl.prejud > median(immig$impl.prejud, na.rm = TRUE), 
+                                1, ifelse(immig$impl.prejud <= median(immig$impl.prejud, na.rm = TRUE), 0, NA))
+
+tapply(immig$h1bvis.supp, list("Explicitly prejudiced" = immig$med.expl.prejud, "Implicitly prejudiced" = immig$med.impl.prejud), mean, na.rm = TRUE)
+tapply(immig$indimm.supp, list("Explicitly prejudiced" = immig$med.expl.prejud, "Implicitly prejudiced" = immig$med.impl.prejud), mean, na.rm = TRUE)
+```
+
+"Unthreatened" respondents (with explicit *and* implicit prejudice below the median) have a 66-100% higher level of average support for immigration (compare to those with explicit *and* implicit prejudice above the median). Overall, the comparisons indicate that the popular support for H1-B visas and Indian immigration is consistently lower among people who perceive cultural threat which is in line with the expectations from the literature. 
+
+```{r}
+par(mfrow=c(1,2))
+qqplot(immig$expl.prejud[immig$tech.whitcol==1], immig$impl.prejud[immig$tech.whitcol==1], xlab = "Explicit prejudice", ylab = "Implicit prejudice", main = "Tech workers")
+abline(0,1)
+qqplot(immig$expl.prejud[immig$tech.whitcol==0], immig$impl.prejud[immig$tech.whitcol==0], xlab = "Explicit prejudice", ylab = "Implicit prejudice", main = "Non-tech workers")
+abline(0,1)
+```
+
+Judging by the Q-Q plots, the bivariate distribution of cultural threat is similar regardless of whether someone is a tech worker or not. Consequently, we can conclude that tech workers are on average not particularly more or less prejudiced than other people which implies that economic and cultural threat as defined in the study are indeed distinct concepts.

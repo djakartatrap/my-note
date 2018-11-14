@@ -1,0 +1,198 @@
+---
+title: "The Ideological Bias of Newspapers"
+output: pdf_document
+---
+
+Text analysis gives researchers a powerful set of tools for extracting general information from a large body of documents.
+
+This exercise is based on Gentzkow, M. and Shapiro, J. M. 2010. “[What Drives Media Slant? Evidence From U.S. Daily Newspapers](http://dx.doi.org/10.3982/ECTA7195).” *Econometrica* 78(1): 35–71. 
+
+We will analyze data from newspapers across the country to see what topics they cover and how those topics are related to their ideological bias. The authors computed a measure of a newspaper's "slant" by comparing its language to speeches made by Democrats and Republicans in the U.S. Congress. 
+
+You will use three data sources for this analysis. The first, `dtm`, is a document term matrix with one row per newspaper, containing the 1000 phrases -- stemmed and processed -- that do the best job of identifying the speaker as a Republican or a Democrat. For example, "living in poverty" is a phrase most frequently spoken by Democrats, while "global war on terror" is a phrase most frequently spoken by Republicans; a phrase like "exchange rate" would not be included in this dataset, as it is used often by members of both parties and is thus a poor indicator of ideology. 
+
+The second object, `papers`, contains some data on the newspapers on which `dtm` is based. The row names in `dtm` correspond to the `newsid` variable in `papers`. The variables are:
+
+-----------------------------------------------------------------------------
+ Name                         Description
+ ---------------------------- -----------------------------------------------
+ `newsid`                     The newspaper ID
+ 
+ `paper`                      The newspaper name
+ 
+ `city`                       The city in which the newspaper is based 
+ 
+ `state`                      The state in which the newspaper is based
+ 
+ `district`                   Congressional district where the newspaper is based (data for Texas only)
+ 
+ `nslant`                     The "ideological slant" (lower numbers mean more Democratic)
+-----------------------------------------------------------------------------
+
+The third object, `cong`, contains data on members of Congress based on their political speech, which we will compare to the ideological slant of newspapers from the areas that these legislators represent. The variables are: 
+
+-----------------------------------------------------------------------------
+ Name                         Description
+ ---------------------------- -----------------------------------------------
+ `legname`                    Legislator's name
+ 
+ `state`                      Legislator's state
+ 
+ `district`                   Legislator's Congressional district 
+ 
+ `chamber`                    Chamber in which legislator serves (House or Senate)
+ 
+ `party`                      Legislator's party
+ 
+ `cslant`                     Ideological slant based on legislator's speech (lower numbers mean more Democratic)
+-----------------------------------------------------------------------------
+
+## Question 1
+
+We will first focus on the slant of newspapers, which the authors define as the tendency to use language that would sway readers to the political left or right. Load the data and plot the distribution of `nslant` in the `papers` data frame, with a vertical line at the median. Which newspaper in the country has the largest left-wing slant? What about right? 
+
+## Answer 1
+
+```{r}
+load("data/newspapers.RData")
+hist(papers$nslant, xlab = "Slant", main = "Histogram of slant variable")
+abline(v = median(papers$nslant))
+
+left <- papers[papers$nslant==min(papers$nslant), c("paper", "city", "state", "nslant")]
+right <- papers[papers$nslant==max(papers$nslant), c("paper", "city", "state", "nslant")]
+```
+
+The leftmost newspaper is the `r left[1:3]` and the rightmost newspaper is the `r right[1:3]`. 
+
+## Question 2
+
+We will explore the content of these newspapers using the `wordcloud` package. 
+
+First load the `wordcloud` package. Make a word cloud of the top words (at most 20) in the `dtm` object. What were the biggest topics in the news in 2005 when these data were collected? Hint: first convert `dtm` into a `matrix`.
+
+Now subset the data to the tenth of newspapers with the leftmost (lowest) political slant and the rightmost (highest) political slant. Make two word clouds showing the words most commonly used by each group of newspapers (again, at most 20 words). How does their language differ? Do they have anything in common? 
+Hint: to use your usual subsetting/indexing tools, convert your dtm matrix into a data frame using the `data.frame` function. 
+
+Pay close attention to your warnings, as they contain important information. For extra credit, see if you can make them go away. 
+
+## Answer 2
+
+```{r}
+library(wordcloud)
+
+# convert dtm to matrix
+dtm.mat <- as.matrix(dtm)
+
+# word cloud for all data
+sums <- colSums(dtm.mat, na.rm=TRUE)
+wordcloud(words=names(sums), sums, max.words=20)
+
+# convert dtm matrix to data frame
+dtm.mat <- data.frame(dtm.mat)
+quants <- quantile(papers$nslant, probs=seq(0,1,0.1))
+q.bottom <- dtm.mat[papers$nslant <= quants["10%"],]
+q.top <- dtm.mat[papers$nslant >= quants["90%"],]
+
+q.bottom.sums <- colSums(q.bottom, na.rm=TRUE)
+q.top.sums <- colSums(q.top, na.rm=TRUE)
+
+wordcloud(words=names(q.bottom), q.bottom.sums, max.words=20)
+wordcloud(words=names(q.top), q.top.sums, max.words=20)
+```
+
+The most liberal newspapers in the country talk more about civil rights ("africanamerican," "martinluther," "lutherking"), while the most conservative papers focus on economic issues ("businessowner," "saletax," "bottomline"). Senior citizens, Hurricane Katrina, and credit cards are important topics to both groups.
+
+Note that the Republican plot couldn't manage to fit some terms, which are listed in the warnings. Students can play with the function's options to get all the words to fit for extra credit, but a complete answer should at least mention that some terms were left out. 
+
+
+## Question 3
+
+We will now explore the relationship between the political slant of newspapers and the language used by members of Congress. 
+
+Using the dataset `cong`, compute average slant by state separately for the House and Senate. Now use `papers` to compute the average newspaper slant by state. Make two plots with Congessional slant on the x-axis and newspaper slant on the y-axis -- one for the House, one for the Senate. Include a best-fit line in each plot -- a red one for the Senate and a green one for the House. Label your axes, title your plots, and make sure the axes are the same for comparability. Can you conclude that newspapers are influenced by the political language of elected officials? How else can you interpret the results? 
+
+## Answer 3
+
+```{r}
+slant.cong.s <- tapply(cong$cslant[cong$chamber=="S"], 
+                       cong$state[cong$chamber=="S"], mean, na.rm=T)
+slant.cong.h <- tapply(cong$cslant[cong$chamber=="H"], 
+                       cong$state[cong$chamber=="H"], mean, na.rm=T)
+slant.cong.s
+
+slant.news <- tapply(papers$nslant, papers$state, mean)
+slant.news # slant.news has DC while slant.cong doesn't, so removing DC
+slant.news <- slant.news[-8]
+
+plot(slant.cong.s, slant.news, ylab="Newspaper slant", xlab="Senate slant", 
+     xlim=c(0.3, 0.75), main="Average slant by state, Senate vs. Media")
+abline(lm(slant.news ~ slant.cong.s), col="red")
+
+plot(slant.cong.h, slant.news, ylab="Newspaper slant", xlab="House slant", 
+     xlim=c(0.3, 0.75), main="Average slant by state, House vs. Media")
+abline(lm(slant.news ~ slant.cong.h), col="green") 
+```
+
+There is evidence of a positive relationship between the slant of newspapers and legislators in both chambers of Congress; that relationship looks about the same for the House and the Senate. This is consistent with the interpretation that politicians influence media coverage. However, it is also possible that the reverse is true: politicians may be influenced in their speeches by what is reported in the media. Alternatively, neither is true: both newspapers and politicians might be tailoring their language to the political preferences of their readers and voters, without exercising any direct influence over one another. 
+
+## Question 4
+
+We will now take a closer look at the relationship between congressional and media slant at the district level, for one particular state -- Texas. To do so, subset the two datasets to Texas alone, then merge them by district and state, keeping only the observations that appear in both datasets. Then, produce the same plot as in question 3 above, but at the district level (just for the House). What do you find?  Which results do you think are more informative, and why? 
+
+## Answer 4
+
+```{r}
+cong.tx <- cong[cong$state=="TX" & cong$chamber=="H",]
+news.tx <- papers[papers$state=="TX",]
+toplot <- merge(news.tx, cong.tx, by="district", all.x=F, all.y=F)
+plot(toplot$cslant, toplot$nslant, ylab="Newspaper slant", xlab="House slant",
+     xlim=c(0.3, 0.75), main="District-level newspaper vs. House slant, TX")
+abline(lm(toplot$nslant ~ toplot$cslant), col="green") 
+```
+
+In Texas, we see that there is a weaker relationship between newspaper and House slant at the district level than we observed with state-level averages, though the relationship is still weakly positive. This is an example of the "ecological inference problem": the existence of a relationship on average at the population level doesn't imply that it exists at the unit level.
+
+There is a trade-off between the analyses in questions 3 and 4: the first suffers from the ecological inference problem, while the second is less generalizable, as it is conducted for only one state. 
+
+## Question 5
+
+Identify the most important terms for capturing regional variation in what is considered newsworthy -- the terms that appear frequently in some documents, but not across all documents. To do so, compute the *term frequency-inverse document frequency (tf-idf)* for each phrase and newspaper combination in the dataset (for this, use the `tm` package and the `dtm` object originally provided). 
+
+Subset the tf-idf transformed matrix you created to contain the newspaper closest to Princeton, the "Home News Tribune" of East Brunswick, NJ. Print the terms with the largest tf-idf in decreasing order. What topics are of interest to our region, but not likely to make the national news? 
+
+## Answer 5
+
+```{r}
+library(tm)
+tf.idf <- as.matrix(weightTfIdf(dtm))
+tf.idf.eb <- tf.idf[papers$paper=="Home News Tribune" & papers$city=="East Brunswick",]
+head(sort(tf.idf.eb, decreasing = TRUE), n = 10)
+```
+
+East Brunswick is particularly interested in stem cell research. 
+
+## Question 6
+
+Cluster all the newspapers from New Jersey on their tf-idf measure. Apply the k-means algorithm with 3 clusters. Summarize the results by printing out the ten most important terms at the centroid of each of the resulting clusters, and show which newspapers belong to each cluster. What topics does NJ care about? 
+
+## Answer 6
+
+```{r}
+set.seed(1234) ## make sure the k-means results replicate
+k <- 3 # number of clusters
+tf.idf.nj <- tf.idf[papers$state=="NJ",] # subset to home state
+km.out <- kmeans(tf.idf.nj, centers = k) # run k-means
+km.out$iter # show number of iterations to convergence 
+colnames(km.out$centers) <- colnames(tf.idf.nj) # label each centroid with terms
+rownames(tf.idf.nj) <- papers$paper[papers$state=="NJ"] # label rows with newspaper names
+
+for (i in 1:k) { # loop for each cluster
+  cat("CLUSTER", i, "\n")
+  cat("Top 10 words:\n") # 10 most important terms at the centroid 
+  print(head(sort(km.out$centers[i, ], decreasing = TRUE), n = 10)) 
+  cat("\n")
+  cat("Newspapers classified: \n") # extract newspapers classified 
+  print(rownames(tf.idf.nj)[km.out$cluster == i])
+  cat("\n")
+}
+```

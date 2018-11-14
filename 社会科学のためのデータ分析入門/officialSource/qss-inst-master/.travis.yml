@@ -1,0 +1,13 @@
+language: r
+sudo: false
+cache: packages
+
+script:
+    - Rscript dist.R student
+    - Rscript dist.R
+  
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+

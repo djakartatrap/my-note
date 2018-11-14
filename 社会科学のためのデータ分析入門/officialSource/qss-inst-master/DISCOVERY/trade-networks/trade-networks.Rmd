@@ -1,0 +1,263 @@
+---
+title: "International Trade Network"
+output:
+  pdf_document: default
+  html_document: default
+date: "5 August 2015"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(error=FALSE,comment='')
+```
+
+The size and structure of international trade flows varies
+significantly over time. This exercise is based in part on
+  Luca De Benedictis and Lucia Tajoli. (2011). 'The World Trade
+  Network.' *The World Economy*, 34:8, pp.1417-1454. The trade data 
+  are from Katherine Barbieri and Omar
+  Keshk. (2012). *Correlates of War Project Trade Data Set*,
+  Version 3.0. available at 
+  [http://correlatesofwar.org](http://correlatesofwar.org).
+  
+The volume of goods traded between countries has grown rapidly over the
+past century, as technological advances lowered the cost of shipping
+and countries adopted more liberal trade policies.  At times, however,
+trade flows have decreased due to disruptive events such as major wars
+and the adoption of protectionist trade policies.  In this exercise,
+we will explore some of these changes by examining the network of
+international trade over several time periods.  The data file
+`trade.csv` contains the value of exports from one country to
+another in a given year.  The names and descriptions of variables in
+this data set are:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `country1`           Country name of exporter 
+ 
+ `country2`           Country name of importer
+ 
+ `year`               Year
+ 
+ `exports`            Total value of exports (in tens of millions of dollars)
+--------------------------------------------------------------------------------
+
+The data are given for years 1900, 1920, 1940, 1955, 1980, 2000, and 2009.
+
+## Question 1
+
+We begin by analyzing international trade as an unweighted,
+  directed network.  For every year in the data set, create an
+  adjacency matrix whose entry $(i,j)$ equals 1 if country $i$ exports
+  to country $j$.  If this export is zero, then the entry equals 0.
+  We assume that missing data, indicated by `NA`, represents
+  zero trade.  Plot the 'network density', which is defined over
+  time as follows,
+  $$
+    \text{network density}  =  \frac{\text{number of edges}}{\text{number of potential edges}}
+  $$
+  The `graph.density` function can compute this measure given
+  an adjacency matrix.  Interpret the result.  
+  
+## Answer 1
+
+```{r}
+par(cex = 1.5)
+trade <- read.csv("data/trade.csv", stringsAsFactors = FALSE)
+
+library(igraph)
+## change NA to 0
+trade$exports[is.na(trade$exports)] <- 0
+## Create a loop over three years in the dataset
+years <- unique(trade$year)
+densities <- rep(NA, length(years))
+adj.mat <- list() # create an empty list
+for(i in 1:length(years)){
+    ## Subset the dataset
+    trade.year <- trade[trade$year == years[i],]
+    ## Create a vector of all unique countries in this year
+    countries <- unique(c(trade.year$country1, 
+                          trade.year$country2))
+    ## Construct an unweighted, directed adjacency matrix 
+    adj.year <- matrix(0, nrow = length(countries), 
+                       ncol = length(countries))
+    rownames(adj.year) <- colnames(adj.year) <- countries
+    for (j in 1:nrow(trade.year)){
+        exporter <- trade.year$country1[j]
+        importer <- trade.year$country2[j]
+        adj.year[exporter, importer] <- trade.year$exports[j]
+    }
+    ## unweighted network
+    adj.year <- ifelse(adj.year > 0, 1, 0)
+    ## Create network object and calculate graph density
+    net <- graph.adjacency(adj.year, diag = FALSE)
+    densities[i] <- graph.density(net)
+    adj.mat[[i]] <- net # save network for each year
+}
+names(adj.mat) <- years
+## Plot network density over time     
+plot(years, densities, type = "b",
+     main = "Density of International Trade Network")
+```
+
+The trade network has generally grown more dense from the period from
+1900 to 2009.  This means that over time, countries tend to gain more
+trade partners, exporting to a higher proportion of potential trade
+partners.  However, there is a notable decrease in density in the year
+1940, most likely reflecting protectionist policies adopted in the
+inter-war period.
+
+## Question 2
+
+For the years 1900, 1955, and 2009, compute the measures of
+  centrality based on degree, betweenness, and closeness (based on
+  total degree) for each year.  For each year, list the five countries
+  that have the largest values of these centrality measures.  How do
+  the countries on the lists change over time?  Briefly comment on the
+  results.
+
+## Answer 2
+
+```{r}
+## Centrality measures for 1900, 1955, 2009
+degree.1900 <- degree(adj.mat[["1900"]])
+between.1900 <- betweenness(adj.mat[["1900"]])
+close.1900 <- closeness(adj.mat[["1900"]], mode = "all")
+degree.1955 <- degree(adj.mat[["1955"]])
+between.1955 <- betweenness(adj.mat[["1955"]])
+close.1955 <- closeness(adj.mat[["1955"]], mode = "all")
+degree.2009 <- degree(adj.mat[["2009"]])
+between.2009 <- betweenness(adj.mat[["2009"]])
+close.2009 <- closeness(adj.mat[["2009"]], mode = "all")
+## Identify 5 countries that rank highest on each
+sort(degree.1900, decreasing = TRUE)[1:5]
+sort(between.1900, decreasing = TRUE)[1:5]
+sort(close.1900, decreasing = TRUE)[1:5]
+sort(degree.1955, decreasing = TRUE)[1:5]
+sort(between.1955, decreasing = TRUE)[1:5]
+sort(close.1955, decreasing = TRUE)[1:5]
+sort(degree.2009, decreasing = TRUE)[1:5]
+sort(between.2009, decreasing = TRUE)[1:5]
+sort(close.2009, decreasing = TRUE)[1:5]
+```
+
+In earlier periods, Western countries (e.g., the United Kingdom,
+Germany, the United States) tended to dominate the international trade
+network in terms of both closeness and betweenness centrality.  By
+2009, however, the top 5 countries had grown significantly more
+diverse.  For example, at that time, China and India were the two
+top-ranking countries in closeness centrality, and Taiwan was the
+top-ranking country in betweenness centrality.
+
+## Question 3
+  
+We now analyze the international trade network as a weighted,
+  directed network in which each edge has a non-negative weight
+  proportional to its corresponding trade volume.  Create an adjacency
+  matrix for such network data.  For the years 1900, 1955, and 2009,
+  compute the centrality measures from above for the weighted trade
+  network.  Instead of degree, however, compute the *graph strength*, 
+  which in this case equals the sum of imports and
+  exports with all adjacent nodes.  The `graph.strength`
+  function can be used to compute this weighted version of degree.
+  For betweenness and closeness, we use the same function as before,
+  i.e., `closeness` and `betweenness`, which can handle
+  weighted graphs appropriately.  Do the results differ from those of
+  the unweighted network?  Examine the top five countries.  Can you
+  think of another way to calculate centrality in this network that
+  accounts for the value of exports from each country?  Briefly
+  discuss.
+  
+## Answer 3
+
+```{r}
+## the following code is similar to what we had earlier
+wadj.mat <- list() # create an empty list
+years <- c(1900, 1955, 2009)
+for(i in 1:length(years)){
+    ## Subset the dataset
+    trade.year <- trade[trade$year == years[i],]
+    ## Create a vector of all unique countries in this year
+    countries <- unique(c(trade.year$country1, 
+                          trade.year$country2))
+    ## Construct an unweighted, directed adjacency matrix 
+    adj.year <- matrix(0, nrow = length(countries), 
+                       ncol = length(countries))
+    rownames(adj.year) <- colnames(adj.year) <- countries
+    for (j in 1:nrow(trade.year)) {
+        exporter <- trade.year$country1[j]
+        importer <- trade.year$country2[j]
+        adj.year[exporter, importer] <- trade.year$exports[j]
+    }
+    ## Create network object and calculate graph density
+    wadj.mat[[i]] <- graph.adjacency(adj.year, weighted = TRUE, 
+                                     diag = FALSE)
+}
+names(wadj.mat) <- years
+## Centrality measures for 1900, 1955, 2009
+strength.1900 <- graph.strength(wadj.mat[["1900"]])
+between.1900 <- betweenness(wadj.mat[["1900"]])
+close.1900 <- closeness(wadj.mat[["1900"]], mode = "all")
+strength.1955 <- graph.strength(wadj.mat[["1955"]])
+between.1955 <- betweenness(wadj.mat[["1955"]])
+close.1955 <- closeness(wadj.mat[["1955"]], mode = "all")
+strength.2009 <- graph.strength(wadj.mat[["2009"]])
+between.2009 <- betweenness(wadj.mat[["2009"]])
+close.2009 <- closeness(wadj.mat[["2009"]], mode = "all")
+## Identify 5 countries that rank highest on each
+sort(strength.1900, decreasing = TRUE)[1:5]
+sort(between.1900, decreasing = TRUE)[1:5]
+sort(close.1900, decreasing = TRUE)[1:5]
+sort(strength.1955, decreasing = TRUE)[1:5]
+sort(between.1955, decreasing = TRUE)[1:5]
+sort(close.1955, decreasing = TRUE)[1:5]
+sort(strength.2009, decreasing = TRUE)[1:5]
+sort(between.2009, decreasing = TRUE)[1:5]
+sort(close.2009, decreasing = TRUE)[1:5]
+```
+
+The betweenness and closeness centrality measures for the weighted
+networks produce results substantially different from those of the
+unweighted networks.  In particular, they assign high betweenness and
+closeness centrality scores to countries that do not have large
+economies, such as Qatar and Albania.  These scores suggest that while
+these countries may not trade in large quantities themselves, they
+link to other large trading partners that would otherwise be distantly
+connected.  A weighted version of degree centrality shows that the
+United States and other Western countries have played a central role
+in the world trade network.
+
+## Question 4
+
+Apply the PageRank algorithm to the weighted trade network
+  separately for each year.  For each year, identify the 5 most
+  influential countries according to this algorithm.  In addition,
+  examine how the ranking of PageRank values has changed over time for
+  each of the following five countries -- US, United Kingdom, Russia,
+  Japan, and China.  Briefly comment on the patterns you observe.
+  
+## Answer 4
+
+```{r}
+## PageRank measures 
+pr.scores <- matrix(NA, nrow = length(years), ncol = 5)
+colnames(pr.scores) <- c("United States of America", "United Kingdom", 
+                         "Russia", "Japan", "China")
+rownames(pr.scores) <- years
+for (i in 1:length(years)) {
+    pr <- page.rank(wadj.mat[[i]])$vector
+    cat("year", years[i], ":\n")
+    print(sort(pr, decreasing = TRUE)[1:5])
+    pr.order <- names(pr)[order(pr, decreasing = TRUE)]
+    pr.scores[i, ] <- match(colnames(pr.scores), pr.order) 
+}
+pr.scores
+```
+
+The United States has had the highest PageRank since 1940.  Prior to
+then, United Kingdom was the most influential according to the
+PageRank algorithm. In recent years, the rankings of Japan and then
+China have risen according to PageRank values while the rankings of
+countries like the United Kingdom and Russia have fallen.  Western
+European countries like Germany and France remain among the most
+influential countries.

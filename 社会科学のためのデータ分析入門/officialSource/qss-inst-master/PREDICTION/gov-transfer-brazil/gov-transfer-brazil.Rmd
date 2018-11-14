@@ -1,0 +1,314 @@
+---
+title: "Government Transfer and Poverty Reduction in Brazil"
+output: 
+  html_document
+---
+
+This exercise is based on
+Litschig, Stephan, and Kevin M Morrison. 2013. “[The Impact of Intergovernmental Transfers on Education Outcomes and Poverty Reduction.](http://dx.doi.org/10.1257/app.5.4.206)” *American Economic Journal: Applied Economics* 5(4): 206–40. 
+
+In this exercise, we estimate the effects of increased government
+spending on educational attainment, literacy, and poverty
+rates.
+
+Some
+scholars argue that government spending accomplishes very little in
+environments of high corruption and inequality. Others suggest that in
+such environments, accountability pressures and the large demand for
+public goods will drive elites to respond.  To address this debate, we
+exploit the fact that until 1991, the formula for government transfers
+to individual Brazilian municipalities was determined in part by the
+municipality's population. This meant that municipalities with
+populations below the official cutoff did not receive additional
+revenue, while states above the cutoff did.  The data set
+`transfer.csv` contains the variables:
+
+--------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `pop82`             Population in 1982
+ 
+ `poverty80`         Poverty rate of state in 1980
+ 
+ `poverty91`         Poverty rate of state in 1991
+ 
+ `educ80`            Average years education of state in 1980
+ 
+ `educ91`            Average years education of state in 1991
+ 
+ `literate91`        Literacy rate of state in 1991
+ 
+ `state`             State
+ 
+ `region`            Region
+ 
+ `id`                Municipal ID
+ 
+ `year`              Year of measurement
+--------------------------------------------------------------------------------
+
+## Question 1
+
+We will apply the regression discontinuity design to this
+  application.  State the required assumption for this design and
+  interpret it in the context of this specific application.  What
+  would be a scenario in which this assumption is violated?  What are
+  the advantages and disadvantages of this design for this specific
+  application?
+
+## Answer 1
+
+The main identifying assumption behind this design is that the 
+pre-treatment characteristics of those cities right below the population 
+cutoff do not differ discontinuously from the characteristics of the 
+cities that are right above the cutoff. In other words, while observed
+and unobserved pre-treatment variables such as literacy, education,
+and ideology can gradually change, the assumption requires that they
+should not discontinuously shift at the population cutoff.  The main advantage of
+this design is internal validity, meaning that the resulting estimate
+of causal effect at the threshold is credible.  The disadvantage,
+however, is the lack of external validity, meaning that the estimate
+we obtain may not be applicable beyond the region near the threshold.
+
+## Question 2
+
+Begin by creating a variable that determines how close each
+  municipality was to the cutoff that determined whether states
+  received a transfer or not. Transfers occurred at three separate
+  population cutoffs: 10,188, 13,584, and 16,980. Using these cutoffs,
+  create a single variable that characterizes the difference from the
+  closest population cutoff.  Following the original analysis,
+  standardize this measure by dividing the difference with the
+  corresponding cutoff and multiply it by 100.  This will yield a
+  normalized percent score for the difference between the population
+  of each state and the cutoff relative to the cutoff value.
+
+## Answer 2
+
+We will use the midpoint between each of the cutoffs to determine
+  which cutoff to use for a given observation.  If an observation is
+  exactly at the midpoint, assign that observation the lower cutoff.
+
+```{r}
+## load data
+data <- read.csv("data/transfer.csv")
+mid1 <- 10188 + (13584 - 10188) / 2
+mid2 <- 13584 + (16980 - 13584) / 2
+## Create normalized percent score variable
+data$pscore <-
+    ifelse(data$pop82 <= mid1, (data$pop82 - 10188)/10188,
+           ifelse(data$pop82 <= mid2, (data$pop82 - 13584)/13584,
+                  (data$pop82 - 16980)/16980))*100
+```
+
+## Question 3
+
+Begin by subsetting the data to include
+  only those municipalities within 3 points of the funding cutoff on
+  either side.  Using regressions, estimate the average causal effect
+  of government transfer on each of the three outcome variables of
+  interest: educational attainment, literacy, and poverty.  Give a
+  brief substantive interpretation of the results.
+
+## Answer 3
+
+```{r}
+dta.below <- subset(data, (data$pscore >= -3) & (data$pscore <= 0))
+dta.above <- subset(data, (data$pscore >= 0) & (data$pscore <= 3))
+## effect on literacy rate
+lit.fit1 <- lm(literate91 ~ pscore, data = dta.below)
+lit.fit2 <- lm(literate91 ~ pscore, data = dta.above)
+coef(lit.fit2)[1] - coef(lit.fit1)[1]
+## effect on educational attainment
+educ.fit1 <- lm(educ91 ~ pscore, data = dta.below)
+educ.fit2 <- lm(educ91 ~ pscore, data = dta.above)
+coef(educ.fit2)[1] - coef(educ.fit1)[1]
+## effect on poverty rate
+pov.fit1 <- lm(poverty91 ~ pscore, data = dta.below)
+pov.fit2 <- lm(poverty91 ~ pscore, data = dta.above)
+coef(pov.fit2)[1] - coef(pov.fit1)[1]
+```
+
+Though the magnitude of effects is relatively small, increased
+government transfers appear to improve educational attainment and
+literacy while reducing the poverty rate.  The point estimates
+obtained via regression can be interpreted as the average causal
+effect of receiving a fiscal transfer at the population threshold. The
+results suggest that the fiscal transfers increased the literacy rate
+by `r round(coef(lit.fit2)[1] - coef(lit.fit1)[1], 2) * 100`
+percentage points, increased the average educational attainment by
+`r round(coef(educ.fit2)[1] - coef(educ.fit1)[1], 2)` years, and
+reduced the poverty rate by `r -round(coef(pov.fit2)[1] -
+  coef(pov.fit1)[1], 2)` percentage points.
+
+## Question 4
+
+Visualize the analysis done in the previous question by plotting
+  data points, fitted regression lines, and the population threshold.
+  Briefly comment on the plot.
+
+## Answer 4
+
+```{r}
+par(cex = 1.5)
+dta <- subset(data, (data$pscore >= -3) & (data$pscore <= 3))
+
+## Literacy Rate Plot
+plot(dta$pscore, dta$literate91,
+     xlab = "Distance to Population Cutoff (%)",
+     ylab = "Literacy Rate in 1991", main = "Literacy Rate")
+abline(v = 0, col = "red", lty = "dashed")
+lines(c(0, 3), predict(lit.fit2,
+                       newdata = data.frame(pscore = c(0, 3))))
+lines(c(-3, 0), predict(lit.fit1,
+                        newdata = data.frame(pscore = c(-3, 0))))
+```
+
+```{r}
+## Educational Attainment Plot
+plot(dta$pscore, dta$educ91,
+     xlab = "Distance to Population Cutoff (%)",
+     ylab = "Avg Years Schooling in 1991",
+     main = "Educational Attainment")
+abline(v = 0, col = "red", lty = "dashed")
+lines(c(0, 3), predict(educ.fit2,
+                       newdata = data.frame(pscore = c(0, 3))))
+lines(c(-3, 0), predict(educ.fit1,
+                        newdata = data.frame(pscore = c(-3, 0))))
+```
+
+```{r}
+## Poverty Rate Plot
+plot(dta$pscore, dta$poverty91,
+     xlab = "Distance to Population Cutoff (%)",
+     ylab = "Poverty Rate in 1991", main = "Poverty Rate")
+abline(v = 0, col = "red", lty = "dashed")
+lines(c(0, 3), predict(pov.fit2,
+                       newdata = data.frame(pscore = c(0, 3))))
+lines(c(-3, 0), predict(pov.fit1,
+                        newdata = data.frame(pscore = c(-3, 0))))
+```
+
+The figure visualizes the results we found in the previous
+question. For literacy and educational attainment, we see that the
+predicted value at the discontinuity using the regression model fitted
+to the left side data is slightly lower than the predicted value using
+the right side data. For the poverty rate measure, we see the opposite
+is the case.
+
+## Question 5
+Instead of fitting linear regression models, we compute the
+  difference in means of the outcome variables between the groups of
+  observations above the threshold and below it.  How do the estimates
+  differ from what you obtained in the earlier Question?  Is
+  the assumption invoked here identical to the one required for the
+  analysis conducted there?  Which
+  estimates are more appropriate?  Discuss.
+
+## Answer 5
+
+```{r}
+## diff-in-means
+mean(dta.above$literate91) - mean(dta.below$literate91) # literacy rate
+mean(dta.above$educ91) - mean(dta.below$educ91) # education
+mean(dta.above$poverty91) - mean(dta.below$poverty91) # poverty
+```
+
+The difference-in-means estimates are based on an additional
+assumption that the slopes of regressions below and above the
+threshold are both zero (i.e., the regression lines are flat).  That
+is, the assumption is that within the 3 percent window, the population
+is not associated with the outcome variables.  If this assumption is
+appropriate (is violated), these difference-in-means estimates are
+similar to (different from) the regression-based estimates.  In
+general, since the difference-in-means estimates require an additional
+assumption, the regression-based estimates are more appropriate.
+
+The results show that despite subtle differences, the two approaches
+yield similar conclusions.  While the slopes of the regression lines
+are not zero (especially for educational attainment and poverty rate),
+the fact that the slopes have opposite signs and similar absolute
+magnitude below and above the threshold means that the
+difference-in-means estimators yield results similar to those based on
+regressions.
+
+## Question 6
+
+Repeat the analysis conducted in the original question
+  but vary the width of analysis window from 1 to 5 percentage points
+  below and above the threshold.  Obtain the estimate for every
+  percentage point.  Briefly comment on the results.
+
+## Answer 6
+
+```{r}
+results <- matrix(NA, nrow = 5, ncol = 3)
+colnames(results) <- c("literacy", "education", "poverty")
+rownames(results) <- 1:5
+## Replicate previous analysis for each window size
+for(i in 1:5){ ## Loop over each of the 5 windows
+  idta <- data[(data$pscore >= -i) & (data$pscore <= i), ]
+  idta.below <- data[(data$pscore >= -i) & (data$pscore <= 0), ]
+  idta.above <- data[(data$pscore >= 0) & (data$pscore <= i), ]
+  ## Literacy rate
+  lit.fit1 <- lm(literate91 ~ pscore, data = idta.below)
+  lit.fit2 <- lm(literate91 ~ pscore, data = idta.above)
+  lit.effect <- coef(lit.fit2)[1] - coef(lit.fit1)[1]
+  ## Educational attainment
+  educ.fit1 <- lm(educ91 ~ pscore, data = idta.below)
+  educ.fit2 <- lm(educ91 ~ pscore, data = idta.above)
+  educ.effect <- coef(educ.fit2)[1] - coef(educ.fit1)[1]
+  ## Poverty rate
+  pov.fit1 <- lm(poverty91 ~ pscore, data = idta.below)
+  pov.fit2 <- lm(poverty91 ~ pscore, data = idta.above)
+  pov.effect <- coef(pov.fit2)[1] - coef(pov.fit1)[1]
+  ## Put into single vector and combine in the loop
+  results[i, ] <- c(lit.effect, educ.effect, pov.effect)
+}
+results
+```
+
+The results change substantially as we vary the window we use to
+perform the regression analysis. In general, the pattern is that as
+the window increases, the estimated effects become larger. The largest
+variation by window size occurs in the educational attainment
+variable, while the literacy and poverty rate measures are more
+stable. For all three estimated effects, however, the direction of
+effects does not change as we vary the window size.
+
+## Question 7
+
+Conduct the same analysis as in the
+  earlier Question but this time using measures of the
+  poverty rate and educational attainment taken in 1980, before the
+  population-based government transfers began. What do the results
+  suggest about the validity of analysis presented in
+  the earlier Question?
+## Answer 7
+
+```{r}
+## Educational attainment in 1980
+educ.fit1 <- lm(educ80 ~ pscore, data = dta.below)
+educ.fit2 <- lm(educ80 ~ pscore, data = dta.above)
+coef(educ.fit2)[1] - coef(educ.fit1)[1]
+## Poverty rate in 1980
+pov.fit1 <- lm(poverty80 ~ pscore, data = dta.below)
+pov.fit2 <- lm(poverty80 ~ pscore, data = dta.above)
+coef(pov.fit2)[1] - coef(pov.fit1)[1]
+```
+
+The use of measurements taken before the fiscal transfers began
+amounts to a placebo test. If the RD design is valid, whether or not a
+state received additional revenue by virtue of being above the
+population cutoff should have no bearing on its poverty rate or
+educational attainment *before those transfers began*.
+Conducting the same analysis in Question 2, we see that the
+difference in poverty rate is less than half the estimated difference
+using the 1991 measure. Similarly, the average years of school is
+approximately a third as large as what we estimate using the 1991
+measure.  These differences are small relative to what we observe with
+the 1991 measure and thus suggest that the discontinuity design is
+valid. To be more certain, however, we would need to determine whether
+the estimates are statistically distinguishable from zero, a topic
+covered in later chapters.
+

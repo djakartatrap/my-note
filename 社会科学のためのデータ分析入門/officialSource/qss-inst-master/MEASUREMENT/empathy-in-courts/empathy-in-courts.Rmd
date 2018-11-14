@@ -1,0 +1,262 @@
+---
+title: "Sources of Empathy in the Circuit Courts "
+output: pdf_document
+---
+
+In this exercise, we will analyze the relationship between various demographic traits and pro-feminist voting behavior among circuit court judges. In a recent paper, Adam N. Glynn and Maya Sen argue that having a female child causes circuit court judges to make more pro-feminist decisions. The paper can be found at: 
+
+Glynn, Adam N., and Maya Sen. (2015). ["Identifying Judicial Empathy: Does Having Daughters Cause Judges to Rule for Women's Issues?."](https://doi.org/10.1111/ajps.12118) *American Journal of Political Science* Vol. 59, No. 1, pp. 37--54.
+
+The dataset `dbj.csv` contains the following variables about individual judges:
+
+ -------------------------------- ----------------------------------------------------------
+ Name                             Description
+ -------------------------------- ----------------------------------------------------------
+ `name`                           The judge’s name
+ 
+ `child`                          The number of children each judge has.
+ 
+ `circuit.1`                      Which federal circuit the judge serves in.
+ 
+ `girls`                          The number of female children the judge has.
+ 
+ `progressive.vote`               The proportion of the judge’s votes on women’s issues which 
+                                  were decided in a pro-feminist direction.
+                                  
+ `race`                           The judge’s race (`1` = white, `2` = African-American, 
+                                  `3` = Hispanic, `4` = Asian-American).
+                                  
+ `religion`                       The judge’s religion (`1` = Unitarian, `2` = Episcopalian, `3` = Baptist, 
+                                  `4` = Catholic, `5` = Jewish, `7` = Presbyterian, `8` = Protestant, 
+                                  `9` = Congregationalist, `10` = Methodist, `11` = Church of Christ, 
+                                  `16` = Baha'i, `17` = Mormon, `21` = Anglican, `24` = Lutheran, `99` = unknown). 
+                                  
+ `republican`                     Takes a value of `1` if the judge was appointed by a Republican president, `0` otherwise.
+                                  Used as a proxy for the judge’s party.
+                                  
+ `sons`                           The number of male children the judge has.
+ 
+ `woman`                          Takes a value of `1` if the judge is a woman, `0` otherwise.
+ 
+ `X`                              Indicator for the observation number.
+ 
+ `yearb`                          The year the judge was born.
+ -------------------------------------------------------------------------------------------
+ 
+## Question 1
+
+Load the `dbj.csv` file. Find how many judges there are in the dataset, as well as the gender and party composition of our dataset. Is the party composition different for male and female judges? Additionally, note that our outcome in this exercise will be the proportion of pro-feminist rulings. What is the range of this variable (`progressive.vote`)? 
+
+## Answer 1
+
+```{r}
+dbj <- read.csv("data/dbj.csv")
+
+## How many judges are there in the data set?
+nrow(dbj)
+
+## What is the gender composition of the judges in the data set?
+table(dbj$woman)
+
+## What is the party composition of judges in the data set?
+table(dbj$republican)
+
+## How about for only females / males?
+females <- dbj[dbj$woman == 1, ]
+males   <- dbj[dbj$woman != 1, ]
+
+## party composition by gender
+table(females$republican)
+table(males$republican)
+```
+
+There are `r nrow(dbj)` judges in our dataset, and the gender composition leans heavily male. The party composition is more even, although a greater share of males are republican than females. 
+
+Our outcome, the proportion of progressive votes, must be between 0 and 1. We can see this through the data.
+
+```{r}
+summary(dbj$progressive.vote)
+```
+
+Notice that the minimum is exactly 0 and the maximum is exactly 1. We can interpret this to mean that some judges decided all (none) of their decisions in a pro-feminist direction and thus have a value of `progressive.vote` equal to 1 (0). We can also how many judges have this quality:
+
+```{r}
+always <- subset(dbj, progressive.vote == 1)
+never <- subset(dbj, progressive.vote == 0)
+
+## how many?
+nrow(always)
+nrow(never)
+
+## party composition
+table(always$republican)
+table(never$republican)
+```
+
+`r nrow(always)` judges decided all of their rulings in a pro-feminist directions, while `r nrow(never)` judges never did so. We can see that their party composition is relatively even.
+
+## Question 2
+
+Next, we consider differences between some groups. For each of the four groups (Republican men/women, Democratic men/women) defined by gender and partisanship, create a boxplot (using a single command) that illustrates the differences in `progressive.vote`.  Briefly interpret the results of the analysis. For example, do any of the results surprise you? Does it appear that partisanship, gender, or both contribute to progressive voting patterns? Should we interpret any of these effects causally? Why or why not?
+
+## Answer 2
+
+```{r}
+boxplot(progressive.vote ~ woman + republican, data = dbj, 
+        xlab = "Gender and Partisanship", 
+        ylab = "Proportion of pro-feminist decisions", 
+        main = "Progressive Vote Prop. by Gender and Partisanship",
+        names = c("Dem. Men", "Dem. Women", "Rep. Men", "Rep. Women"))
+```
+ 
+It certainly seems like party and `progressive.vote` are related, as Democrats have a higher rate of progressive voting than Republicans for both genders. It may be surprising that men in both parties are more likely to vote in a pro-feminist way than women, but this relationship is much weaker (Republicans are nearly indistinguishable by gender). Thus, it appears that both partisanship and gender affect progressive voting records, but this very simple analysis suggests the gender relationship may be more important for Democrats than Republicans. 
+
+Recall that we should not interpret these effects causally, as we can not remove the possibility of confounders. For example, many factors can lead to one's party identification - it is certainly not random. 
+
+## Question 3
+
+Create a new binary variable which takes a value of `1` if a judge has *at least* one child (that is, any children at all), `0` otherwise. Then, use this variable to answer the following questions. Are Republicans and Democrats equally likely to be parents (that is, have at least one child)? Do judges with children vote differently than judges without?  If so, how are they different? Do republican and democratic parents vote differently on feminist issues?
+
+## Answer 3
+
+```{r}
+dbj$c.indic <- ifelse(dbj$child >= 1, 1, 0)
+
+## How many judges in the data set have at least one child?
+table(dbj$c.indic)
+```
+
+First, we see that the overwhelming majority of judges have children.
+
+```{r}
+## Are republicans and democrats equally likely to be parents? 
+diff.kids.party <- (mean(dbj$c.indic[dbj$republican==1])) - 
+  (mean(dbj$c.indic[dbj$republican==0]))
+diff.kids.party
+```
+
+Republicans are very slightly more likely (`r round(diff.kids.party, digits = 4)`) to have children, but this is a very small difference - the parties are nearly indistinguishable here. 
+
+```{r}
+## Do judges with children vote differently than judges without?
+diff.means.kids <- (mean(dbj$progressive.vote[dbj$c.indic==1])) - 
+  (mean(dbj$progressive.vote[dbj$c.indic==0]))
+diff.means.kids
+```
+
+This effect is larger than the last. It does appear that judges with children are *less* likely to vote progressively than those without. But, judges with children differ from those without and so it is difficult to nail down why this difference emerges. 
+
+```{r}
+## Do republican and democratic parents vote differently on feminist issues?
+rep.kids.mean <- mean(dbj$progressive.vote[dbj$republican==1 & dbj$c.indic ==1])
+dem.kids.mean <- mean(dbj$progressive.vote[dbj$republican==0 & dbj$c.indic == 1])
+rep.kids.mean - dem.kids.mean
+```
+
+Conditional on having at least one child, Democrats are much more likely to vote progressively, we see a difference of `r abs(round(rep.kids.mean - dem.kids.mean, digits = 2)) * 100` percentage points.  Again, it is difficult to know why this difference arises given that Democrats with kids may differ from Republican with children in many respects.
+
+## Question 4
+
+What is the difference in the proportion of pro-feminist decisions between judges who have at least one daughter and those who do not have any?  Compute this difference in two ways; (1) using the entire sample, (2) separately by the number of children judges have (only considering judges that have 3 children or less).  What assumptions are required for us to interpret these differences as causal estimates?
+
+## Answer 4
+
+We'll first analyze over the entire sample. We'll start by subsetting for only the judges who have children, as comparing judges with one daughter to those without any children would not be valid (parents who have children are different from those who do not) - our comparison of interest in the one child case is between parents who have a girl and a boy. 
+
+```{r}
+## select only judges that have children
+children <- dbj[dbj$child >= 1,]
+
+## create indicator for at least one girl
+children$girl.indic <- ifelse(children$girls >= 1, 1, 0)
+table(children$girl.indic) # find how many judges have at least one girl
+
+atLeastOneGirl <- subset(children, subset = girl.indic == 1)
+noGirls <- subset(children, subset = girl.indic == 0)
+
+## full sample effect
+overall <- mean(atLeastOneGirl$progressive.vote) - mean(noGirls$progressive.vote)
+```
+
+Analysis over the entire sample between judges that have at least one child who is a girl and judges that have at least one child but no girls shows a fairly large effect: `r round(overall * 100)` percentage points. However, perhaps there is a great deal of heterogeneity (different effects for different types of people) here. Let's break the sample up by the number of children to explore this further. We'll do the analysis separately for judges with 1, 2, and 3 children.  
+
+```{r}
+## subset by one child
+oneChild <- children[children$child == 1,]
+oneGirl <- oneChild[oneChild$girls >= 1,]
+noGirls <- oneChild[oneChild$girls == 0,]
+
+(one <- mean(oneGirl$progressive.vote) - mean(noGirls$progressive.vote))
+
+## subset by two children
+twoChildren <- children[children$child == 2,]
+atLeastOneGirl <- twoChildren[twoChildren$girls >= 1,]
+noGirls <- twoChildren[twoChildren$girls == 0,]
+
+(two <- mean(atLeastOneGirl$progressive.vote) - mean(noGirls$progressive.vote))
+
+## subset by three children
+threeChildren <- children[children$child == 3,]
+atLeastOneGirl <- threeChildren[threeChildren$girls >= 1,]
+noGirls <- threeChildren[threeChildren$girls == 0,]
+
+(three <- mean(atLeastOneGirl$progressive.vote) - mean(noGirls$progressive.vote))
+
+breakdown <- rbind(one, two, three)
+rownames(breakdown) <- c("one child", "two children", "three children")
+breakdown
+```
+
+As expected, we see a great deal of heterogeneity here. Judges with one child and three children have large differences in average `progressive.vote` between judges with at least one daughter and those without, `r round(one * 100)` and `r round(three * 100)` percentage points, respectively. However, the effect for two children is much smaller than both - only `r round(two * 100)` percentage points. This is interesting, as judges with one boy and one girl have similar progressive feminist voting records to judges with two boys, but judges with only a single female child or judges with three children and at least one girl have much larger effects when compared to their no-daughter peers. 
+
+In order to interpret this estimate causally, we must make the assumption that, conditional on the number of children a judge has, the number of daughters is random. This is *not* to say that the number of children is random, which would not be a valid assumption. Many factors in a judge's life may be related to how many children they decide to have, such as religion, ideology, or even a personal preference for a particular gender ("I've had two boys already but I'd really like a girl!"). If instead we condition on the *number* of children a judge has, then we are assuming that the biological sex of the child is sufficiently random. 
+
+## Question 5
+
+Next, we are going to consider the design of this study. The original authors assume that conditional on the number of children a judge has the number of daughters is random (as we did in the previous question).  Indeed, this is the assumption that would justify the analysis of the previous question. For example, among the judges who have two children, the number of daughters -- either `0`, `1`, or `2` -- has nothing to do with the (observed or unobserved) pre-treatment characteristics of judges.  Is this assumption reasonable?  Is there a scenario under which this assumption can be violated?  Do the data support the assumption?
+
+## Answer 5
+
+If the judges decide the number of kids to have independently of their gender, this assumption is reasonable.  However, if judges have a preference for a particular sex, this assumption may be violated.  For example, suppose that a judge prefers to have at least one daughter. Then, if the first child is a boy, the judge may be more likely to have another child.  As a result, among the judges who only have one child, those with a son are less likely to prefer a girl than those with a daughter. However, is there evidence for this? Let's see.
+
+The simplest way to start analyzing this is to analyze the average gender distributions for judges separately by the number of children they have. We can find the average number of girls (or boys, equivalently) for judges with 1, 2, 3. etc. children separately. Hopefully this is reminding you of `tapply()`! 
+
+If the number of girls conditional on the number of children truly is random, then we would expect to see an average of 0.5 girls for judges with one child. However, notice that we cannot do this for all numbers of children in our dataset by simply taking the average number of girls: this would work for 1 child, but as soon as we move to 2 we would expect to see an average of 1 girl per 2 children instead of 0.5 like in the 1 child case. We could either keep this in mind as we interpret the output of `tapply()` or normalize. We'll show both here: 
+
+```{r}
+## straight tapply
+tapply(dbj$girls, dbj$child, mean)
+
+## normalized proportion
+dbj$girl.prop <- dbj$girls / dbj$child 
+  
+tapply(dbj$girl.prop, dbj$child, mean)
+```
+
+Both look reasonable, all of the normalized proportions are about 0.5 and the average number of girls is also reasonable (approximately .5 girls for judges with 1 child, approximately 1 girl for judges with 2 children, etc.). This evidence seems to suggest that there is no blatant gender-preference going on here, but recall that it may be true for particular confounders. 
+
+We can complete such an analysis for a single confounder. It seems reasonable that certain types of religious beliefs may affect a gender preference. We will check whether or not gender proportions are far from random in the Catholic subset of our data. 
+
+```{r}
+## catholic is the 4th religion
+dbj$catholics <- ifelse(dbj$religion == 4, 1, 0)
+
+catholics <- dbj[dbj$catholics == 1,]
+nonCatholics <- dbj[dbj$catholics == 0,]
+
+mean(catholics$girls)
+mean(nonCatholics$girls)
+```
+
+Catholics are slightly less likely to have girls, but the difference is not terribly large. This suggests that non-Catholics may prefer having a female child slightly more, but the evidence is certainly not conclusive.
+
+```{r}
+## Republican Catholics
+republicans <- catholics[catholics$republican == 1,]
+nonRepublicans <- catholics[catholics$republican != 1,]
+
+mean(republicans$girls)
+mean(nonRepublicans$girls)
+```
+
+The difference is larger between Republican Catholics and Republican non-Catholics. Republican Catholics are *more* likely to have girls than Republican non-Catholics, reversing our finding from earlier. This discrepancy suggests that a gender preference may not be happening in this section of the data.  It is possible other confounders, which may or may not be included in this data, are associated with the number of daughters even after conditional on the number of children.  Although we cannot exclude this possibility, the analysis above appears to suggest that the assumption is reasonable. 

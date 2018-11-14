@@ -14,3 +14,4 @@ addmargins(race.call.tab)
 # 審査通過率
 race.call.tab[, 2]
 
+

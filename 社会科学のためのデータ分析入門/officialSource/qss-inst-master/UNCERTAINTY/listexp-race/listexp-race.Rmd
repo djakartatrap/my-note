@@ -1,0 +1,305 @@
+---
+title: "List Experiment and Racial Prejudice"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Despite the legal end of desegregation in the United States South,
+racial tension persists. While outright discrimination against
+African-Americans is illegal, some believe that many white Southerners
+continue to be prejudiced against blacks at higher rates than whites
+in the rest of the United States. Others have suggested that, during
+the 1970s and 1980s, a 'new South' emerged, in which racial tensions
+declined and the attitudes of white Southerners came to closely mirror
+the rest of the country. Because of the sensitive nature of racial
+prejudice, however, asking respondents directly about their feelings
+towards blacks is likely to elicit untruthful answers from some
+people. To get around this, researchers used a list experiment to
+estimate the proportion of respondents who exhibit racial prejudice.
+We saw the application of list experiment in
+Section 3.1 where it was used to measure support
+for combatants among Afghan citizens.  Readers are encouraged to read
+that section before they begin this exercise.
+
+In the 1991 National Race and Politics survey, researchers randomly
+divided respondents into two groups.  Those assigned to the control
+condition were read the following script: 
+
+> Now, I am going to read you three things that sometimes make people angry or upset. After I read all three, just tell me HOW MANY of them upset you. I don't want to know which ones, just HOW MANY.
+>
+> - The federal government increasing the tax on gasoline
+> - Professional athletes getting million-dollar contracts
+> - Large corporations polluting the environment
+
+Those respondents assigned to the treatment group, on the other hand,
+received the same script except that the list included one additional
+item that read 'a black family moving in next door.' The data set we
+will be analyzing for this exercise is contained in the csv file
+*listexp.csv*. The names and descriptions of the variables
+in this data set are listed in the table below.
+
+------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `id`                Unique id of the respondent
+ 
+ `y`                 The number of items selected from the list
+ 
+ `treat`             The treatment indicator (binary)
+ 
+ `south`             An indicator for residence in a Southern state
+------------------------------------------------------------------------------
+
+## Question 1
+
+Begin by computing the overall proportion of respondents who
+  demonstrate racial prejudice. For now, remove all observations for
+  which there are missing values on the outcome variable.  Compute the
+  standard error and 95% confidence interval for this estimate.  Give
+  a brief interpretation of the result.  
+  
+## Answer 1
+
+```{r}
+race <- read.csv("data/listexp.csv", header = TRUE)
+race.c <- na.omit(race)
+
+items.treat <- race.c$y[race.c$treat == 1]
+items.control <- race.c$y[race.c$treat == 0]
+prop.prej <- mean(items.treat) - mean(items.control)
+se.prej <- sqrt(var(items.treat) / length(items.treat) + 
+                  var(items.control) / length(items.control))
+ci.prej <- c(prop.prej - qnorm(0.975)*se.prej, 
+             prop.prej + qnorm(0.975)*se.prej)
+list(prop.prej, ci.prej)
+```
+
+We find that the standard error is `r round(se.prej, digits = 2)` and the 95% confidence
+interval is `r round(ci.prej, digits = 2)`. The confidence interval is telling us
+that if we were to run this experiment many times, the 95% interval 
+would include the true sample proportion of those who hold
+racial prejudice 95% of the time. Note that this is not the same as an interval
+that contains the true sample proportion with 95% probability. 
+ 
+## Question 2
+
+Conduct a two-sided hypothesis test where the null hypothesis is
+  that the population proportion of respondents exhibiting racial
+  prejudice is zero. Calculate the z-score and its associated
+  two-sided $p$-value.  Finally, conduct the hypothesis test using
+  0.05 as the statistical significance threshold. What assumptions are 
+  required in order for this estimate to be valid?
+  
+## Answer 2
+
+```{r}
+## Remember, the real numerator is prop.prej - 0 because of null hypothesis
+z.prej <- prop.prej/se.prej 
+## Set lower.tail to get the correct portion of the distribution
+p.val <- 2*pnorm(z.prej, lower.tail = F) 
+```
+
+We obtain a z-score of `r round(z.prej, digits = 2)` and an associated $p$-value of 
+`r round(p.val, digits = 2)`. At the 0.05 level of significance, we fail to 
+reject the null hypothesis of no treatment effect. This means that the difference 
+in the mean number of items selected in the treatment condition is not statistically 
+significant. Substantively, this means that we cannot reject the claim that there is 
+no racial prejudice in the survey sample. In obtaining the p-value, we are assuming that
+our test statistic (e.g. the difference in means between treated and control) is normally 
+distributed. If the $t$-statistic was used, we would be assuming that the difference
+is distributed according to the Student's $t$ distribution with $n-1$ degrees of freedom.
+
+## Question 3
+
+Conduct the same hypothesis test as in the previous question 
+  separately for Southern and non-Southern respondents. Test the null
+  hypothesis of zero difference between the proportion of respondents
+  exhibiting racial prejudice between the Southern and non-Southern
+  respondents. Report the $p$-values under the alternative hypothesis
+  that the population proportion of respondents exhibiting racial
+  prejudice is greater in the Southern sample than in the non-Southern 
+  sample.  Interpret the results of this hypothesis test.
+  
+## Answer 3
+
+```{r}
+## South
+items.treat.south <- race.c$y[race.c$treat == 1 & race.c$south == 1]
+items.control.south <- race.c$y[race.c$treat == 0 & race.c$south == 1]
+prop.prej.south <- mean(items.treat.south) - mean(items.control.south)
+se.prej.south <- sqrt(var(items.treat.south) / length(items.treat.south) + 
+                  var(items.control.south) / length(items.control.south))
+z.prej.south <- prop.prej.south / se.prej.south
+pnorm(z.prej.south, lower.tail = F)
+
+## Non-South
+
+items.treat.nosouth <- race.c$y[race.c$treat == 1 & race.c$south == 0]
+items.control.nosouth <- race.c$y[race.c$treat == 0 & race.c$south == 0]
+prop.prej.nosouth <- mean(items.treat.nosouth) - mean(items.control.nosouth)
+se.prej.nosouth <- sqrt(var(items.treat.nosouth) / length(items.treat.nosouth) + 
+                  var(items.control.nosouth) / length(items.control.nosouth))
+z.prej.nosouth <- prop.prej.nosouth / se.prej.nosouth
+pnorm(z.prej.nosouth, lower.tail = F)
+
+## Difference
+treat.diff <- prop.prej.south - prop.prej.nosouth
+se.diff <- sqrt(se.prej.south^2 + se.prej.nosouth^2)
+p.diff <- pnorm(treat.diff / se.diff, lower.tail = F)
+
+```
+
+The difference in proportions for the South and non-South samples
+is `r round(treat.diff, digits = 2)`, indicating that a larger share of respondents
+in the South exhibit racial prejudice (in the sample). The $p$-value 
+of the z-score of the difference between the South and non-South
+respondents is `r round(p.diff, digits = 3)`, that this difference is statistically
+significant at the 0.05 level. The interpretation of this result
+is that if we conducted the experiment many times, the  probability
+that we would observe a difference as large as we do is `r round(p.diff*100, digits = 3)`. 
+We can thus reject the null hypothesis that the incidence of racial
+prejudice is the same in both samples. 
+
+## Question 4
+
+Construct the 95 percent confidence interval for the
+  difference in the population proportion of those who are prejudiced
+  between the South and non-Southern whites.  Interpret the result.
+  
+## Answer 4
+
+```{r}
+ci.south <- c(prop.prej.south + qnorm(0.975)*se.prej.south, 
+              prop.prej.south - qnorm(0.975)*se.prej.south)
+ci.nosouth <- c(prop.prej.nosouth + qnorm(0.975)*se.prej.nosouth, 
+              prop.prej.nosouth - qnorm(0.975)*se.prej.nosouth)
+ci.diff <- c(treat.diff + qnorm(0.975)*se.diff, 
+             treat.diff - qnorm(0.975)*se.diff)
+```
+
+We see that the confidence interval is quite large, ranging from a difference
+of slightly less than 1% to a difference of nearly 50%. As such, while
+the difference we detect is statistically significant, it is also relatively 
+imprecise. The true difference could be of a magnitude that is either substantively very large (`r ci.diff[1]`) or very small (`r ci.diff[2]`). 
+
+## Question 5
+
+A critical assumption of the list experiment is that the
+  inclusion of the sensitive item does not alter the respondents'
+  willingness to give a truthful answer to the number of items that
+  upset them.  Test this assumption by examining the rates of
+  non-response. Compare the Southern and non-Southern subsets.  Are
+  there differences between the Southern and non-Southern respondents?
+  What does this tell us about the validity of the list experiment and
+  racial attitudes between the regions?
+  
+## Answer 5
+
+```{r}
+race$missing <- ifelse(is.na(race$y) == T, 1, 0)
+
+## South
+miss.treat.south <- race$miss[race$treat == 1 & race$south == 1]
+miss.control.south <- race$miss[race$treat == 0 & race$south == 1]
+prop.miss.south <- mean(miss.treat.south) - mean(miss.control.south)
+se.miss.south <- sqrt(var(miss.treat.south) / length(miss.treat.south) + 
+                  var(miss.control.south) / length(miss.control.south))
+z.miss.south <- prop.miss.south / se.miss.south
+pnorm(z.miss.south, lower.tail = F)
+
+## Non-South
+
+miss.treat.nosouth <- race$miss[race$treat == 1 & race$south == 0]
+miss.control.nosouth <- race$miss[race$treat == 0 & race$south == 0]
+prop.miss.nosouth <- mean(miss.treat.nosouth) - mean(miss.control.nosouth)
+se.miss.nosouth <- sqrt(var(miss.treat.nosouth) / length(miss.treat.nosouth) + 
+                  var(miss.control.nosouth) / length(miss.control.nosouth))
+z.miss.nosouth <- prop.miss.nosouth / se.miss.nosouth
+pnorm(z.miss.nosouth, lower.tail = F)
+
+## Difference
+treat.diff <- prop.miss.south - prop.miss.nosouth
+se.diff <- sqrt(se.miss.south^2 + se.miss.nosouth^2)
+p.val <- pnorm(treat.diff / se.diff, lower.tail = F)
+```
+
+There do not appear to be any statistically significant differences in 
+the non-response rates across the two subsets. The estimated difference of
+`r round(treat.diff, digits=4)` is 
+substantively very small and the large $p$-value of 
+`r round(p.val, digits=4)` means that we cannot reject the null 
+hypothesis of no 
+difference in non-response rates across the two samples. This strengthens
+the validity of the list experiment because it suggests that
+people did not react differently to the inclusion of the sensitive item
+depending on what region they were from. 
+
+## Question 6
+
+Now we conduct randomization inference separately for the South
+  and non-South samples. Using the difference-in-means estimator as a
+  test statistic, simulate the randomization distribution for 10,000
+  possible treatment assignments under the null hypothesis that the
+  population proportion of those who are racially prejudiced is zero.
+  For both the South and non-South samples, create a histogram of this
+  randomization distribution and include as a vertical line the actual
+  estimated proportion. Then, use these distributions to approximate
+  the one-sided $p$-values and conduct the hypothesis test using 0.05 as the
+  threshold of statistical significance.  Provide a brief interpretation 
+  of the result.
+  
+## Answer 6
+
+```{r}
+## Store the estimated ATE for both South and non-South region:
+ate <- c(prop.prej.nosouth, prop.prej.south)
+## Subset data
+race.south <- race[race$south == 1, ]
+race.nosouth <- race[race$south == 0, ]
+## Specify number of simulations
+n.sims <- 10000
+## Create randomization distributions
+rand.south <- rep(NA, n.sims)
+rand.nosouth <- rep(NA, n.sims)
+
+## Begin loop
+for(i in 1:n.sims){
+## Build random treatment assignment vector
+  treat <- sample(race.c$treat, nrow(race.c), replace = FALSE) 
+  race.c$treat <- treat
+## Compute means and store
+  rand.south[i] <- mean(race.c$y[race.c$treat == 1 & race.c$south == 1], na.rm = T) - 
+                    mean(race.south$y[race.c$treat == 0 & race.c$south == 1], na.rm = T)
+  rand.nosouth[i] <- mean(race.c$y[race.c$treat == 1 & race.c$south == 0], na.rm = T) - 
+                    mean(race.c$y[race.c$treat == 0 & race.c$south == 0], na.rm = T)
+}
+
+## Visualize in histograms
+par(mfrow = c(1,2))
+hist(rand.nosouth, freq = FALSE, breaks = 20,
+     xlab = "Estimated Proportion Exhibiting Prejudice", 
+     main = "Non-Southern Respondents")
+abline(v = ate[1], lty = 2, col = "red")
+hist(rand.south, freq = FALSE, breaks = 20, 
+     xlab = "Estimated Proportion Exhibiting Prejudice", 
+     main = "Southern Respondents")
+abline(v = ate[2], lty = 2, col = "red")
+
+## Get exact one-sided p-value: 
+exact.nosouth <- length(rand.nosouth[rand.nosouth >= ate[1]])/length(rand.nosouth)
+exact.south <- length(rand.south[rand.south >= ate[2]])/length(rand.south)
+```
+
+The results of the randomization inference analysis is very similar to the analysis above
+that relies on the normality assumption to obtain the p-value. However, the interpretation
+of the $p$-value is different under randomization distribution, as is the null hypothesis. 
+Here, we are testing the sharp null hypothesis of no treatment effect for all units, which is
+different than in our previous analysis, where we tested the null hypothesis of no difference, 
+on average, between treated and untreated units. The exact $p$-values of `r format(exact.nosouth, scientific=FALSE)`
+and `r format(exact.south, scientific=FALSE)` for the non-South and South sample, respectively, represent the probability
+that we would have observed the treatment effect that we did purely because of the chosen
+treatment assignment vector under the sharp null hypothesis. The small $p$-value for the South
+sample means that it is extremely unlikely we would have observed as large an effect as we did
+if the sharp null hypothesis were true. We can thus reject the sharp null for the Southern sample
+but not for the non-Southern sample. 

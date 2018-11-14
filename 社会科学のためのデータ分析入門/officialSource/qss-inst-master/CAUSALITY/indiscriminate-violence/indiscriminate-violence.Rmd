@@ -1,0 +1,187 @@
+---
+title: "Indiscriminate Violence and Insurgency"
+output: pdf_document
+---
+
+In this exercise, we analyze the relationship between indiscriminate
+violence and insurgent attacks using data about Russian artillery fire
+in Chechnya from 2000 to 2005. 
+
+This exercise is based on: Lyall, J. 2009. “[Does Indiscriminate Violence 
+Incite Insurgent Attacks?: Evidence from 
+Chechnya.](http://dx.doi.org/10.1177/0022002708330881)” 
+ *Journal of Conflict Resolution* 53(3): 331–62.
+    
+Some believe that
+indiscriminate violence increases insurgent attacks by creating more
+cooperative relationships between citizens and insurgents.  Others
+believe that indiscriminate violence can be effective in suppressing
+insurgent activities.  
+
+This dataset was constructed around 159 events in which Russian
+artillery shelled a village.  For each such event we record 
+the village where the shelling took place and whether it was in Groznyy, 
+how many people were killed, and the number of 
+insurgent attacks 90 days before and 90 days after the date of the event.
+We then augment this data by observing the same information 
+for a set of demographically and geographically
+similar villages that were not shelled during the same time periods.
+
+The names and
+descriptions of variables in the data file `chechen.csv` are
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `village`            Name of village
+ 
+ `groznyy`            Variable indicating whether a village is in
+                      Groznyy (1) or not (0) 
+                      
+ `fire`               Whether Russians struck a village with artillery fire 
+                      (1) or not (0)
+                      
+ `deaths`             Estimated number of individuals killed during Russian artillery fire 
+                      or NA if not fired on
+                      
+ `preattack`          The number of insurgent attacks in the 90 days before being fired on
+ 
+ `postattack`         The number of insurgent attacks in the 90 days after being fired on 
+--------------------------------------------------------------------------------
+
+Note that the same village may
+appear in the dataset several times as shelled and/or not shelled
+because Russian attacks occurred at different times and locations.
+
+## Question 1
+  
+How many villages were shelled by Russians?  How many were not?
+  
+## Answer 1 
+```{r}
+chechen <- read.csv("data/chechen.csv")
+
+# Villages ever attacked
+attacked <- length(unique(chechen$village[chechen$fire==1]))
+attacked
+# All villages
+total <- length(unique(chechen$village))
+# Villages never attacked
+total - attacked
+```
+
+`r attacked` villages were shelled, often more than once, and `r total - attacked` villages were never attacked.
+
+## Question 2
+
+Were artillery attacks on
+  Groznyy more lethal than attacks on villages outside of Groznyy?  
+  Conduct the
+  comparison in terms of the mean and median.
+
+## Answer 2   
+
+```{r}
+# Note: deaths is NA for rows with no attack
+tapply(chechen$deaths, chechen$groznyy, mean, na.rm = TRUE)
+tapply(chechen$deaths, chechen$groznyy, median, na.rm = TRUE)
+```
+   
+Yes, artillery attacks killed on average
+`r round(tapply(chechen$deaths, chechen$groznyy, mean,
+  na.rm=TRUE), 1)[[2]]` people in Groznyy but only
+`r round(tapply(chechen$deaths, chechen$groznyy, mean,
+  na.rm=TRUE), 2)[[1]]` people from villages outside Grozny.
+
+## Question 3
+    
+Compare the average number of insurgent attacks for observations
+describing a shelled village and the others.
+Also, compare the quartiles. Would you conclude that indiscriminate
+violence reduces insurgent attacks?  Why or why not?
+    
+## Answer 3
+
+```{r}
+tapply(chechen$postattack, chechen$fire, mean)
+tapply(chechen$postattack, chechen$fire, quantile)
+```
+
+The quartiles reveal that the distribution of insurgent attacks 
+in periods after shelling are similar between the villages 
+hit by artillery fire and those that were not.  The average number of 
+insurgent attacks is
+`r (round(tapply(chechen$postattack, chechen$fire, mean)[[2]],2))`
+for observations of villages that were shelled vs 
+`r (round(tapply(chechen$postattack, chechen$fire, mean)[[1]],2))`
+for the others.  By itself, this comparison
+suggests that indiscriminate violence may slightly reduce insurgent attacks.
+ 
+## Question 4
+
+Considering only the pre-shelling periods, what is the difference between the average number of insurgent attacks for observations describing a shelled village and observations that do not?   What does this suggest to 
+you about the validity of comparison used for the previous question?
+
+## Answer 4
+
+```{r}
+av_pre <- tapply(chechen$preattack, chechen$fire, mean)
+av_pre[2] - av_pre[1]
+```
+
+In these periods the average number of insurgency attacks was similar but slightly lower in observations of villages that were later shelled.  
+Although this is an observational study where artillery fire is not 
+formally randomized, the similarity of these averages
+increases the credibility of the comparison of insurgency attacks
+between villages hit by Russian fire and those not.
+ 
+## Question 5   
+    
+Create a new variable called `diffattack` by calculating
+  the difference in the number of insurgent attacks in the before 
+  and after periods.  Among observations describing villages that were shelled
+  did the number of insurgent attacks increase after being fired on?  
+  Give a substantive interpretation of the result.
+
+## Answer 5
+
+```{r}
+# Effect: post-treatment - pre-treatment
+chechen$diffattack <- chechen$postattack - chechen$preattack
+# Proportion of villages that had more attacks after than before
+attack_increase <- tapply(chechen$diffattack > 0, chechen$fire, mean) 
+attack_increase
+```
+
+`r round(attack_increase[2]*100, 2)` percent of Russian artillery attacks
+were followed by an increase in insurgent attacks, 
+compared to `r round(attack_increase[1]*100, 2)` percent for observations
+where there was no attack.
+
+## Question 6
+
+Compute the mean difference in the `diffattack` variable
+  between observations where villages were shelled and those where 
+  they were not.  Does this
+  analysis support the claim that indiscriminate violence reduces
+  insurgency attacks?  Is the validity of this analysis improved over
+  the analyses you conducted in the previous questions?  Why or why
+  not?  Specifically, explain what additional factor this analysis
+  addresses when compared to the analyses conducted in the previous
+  questions.
+
+## Answer 6
+
+```{r}
+mean.diff <- tapply(chechen$diffattack, chechen$fire, mean)
+mean.diff[2] - mean.diff[1]
+```
+
+The results support the conclusion that indiscriminate
+violence reduces insurgent attacks.  This analysis takes into
+account the common time trend that exists for the two types of
+observations.  If we assume that the trend in numbers of attacks
+pre- and post-shelling among villages that were not in fact shelled 
+is what we would have observed in shelled villages had they not been shelled, then the difference in the
+differences between pre- and post-shelling attacks between the two
+village types can be attributed to the Russian artillery fire.

@@ -1,0 +1,232 @@
+---
+title: 'Changing Minds on Gay Marriage: Revisited'
+output:
+  pdf_document: default
+  html_document: default
+date: "5 August 2015"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(error=FALSE,comment='')
+```
+
+In this exercise, we revisit the gay marriage study we analyzed previously.  
+It is important to work on that
+exercise before answering the following questions.  In May 2015, three
+scholars reported several irregularities in the dataset used to
+produce the results in the study.  This exercise is based on
+  the unpublished report 'Irregularities in LaCour (2014)' by David
+  Broockman, Joshua Kalla, and Peter Aronow. 
+
+They found that the gay
+marriage experimental data were statistically indistinguishable from
+data in the Cooperative Campaign Analysis Project (CCAP), which
+interviewed voters throughout the 2012 United States presidential
+campaign. The scholars suggested that the CCAP survey data -- and not
+the original data alleged to have been collected in the experiment --
+were used to produce the results reported in the gay marriage
+study. The release of a report on these irregularities ultimately led
+to the retraction of the original article. In this exercise, we will
+use several measurement strategies to reproduce the irregularities
+observed in the gay marriage dataset.
+
+To do so, we will use two CSV data files: First, a reshaped version of the
+original dataset in which every observation corresponds to a unique
+respondent, `gayreshaped.csv`.  The variables in this file are:
+
+-------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `study`              Which study the data set is from (1 = Study1, 2 = Study2) 
+ 
+ `treatment`          Five possible treatment assignment options 
+ 
+ `therm1`             Survey thermometer rating of feeling towards gay couples in wave 1 (0--100) 
+ 
+ `therm2`             Survey thermometer rating of feeling towards gay couples in wave 2 (0--100) 
+ 
+ `therm3`             Survey thermometer rating of feeling towards gay couples in wave 3 (0--100) 
+ 
+ `therm4`             Survey thermometer rating of feeling towards gay couples in wave 4 (0--100) 
+-------------------------------------------------------------------------------
+
+Second, the 2012 CCAP dataset alleged to have been used as the basis for
+the gay marriage study results, `ccap2012.csv`.  The variables in the CCAP data are:
+
+-------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `caseid`             Unique respondent ID 
+ 
+ `gaytherm`           Survey thermometer rating (0-100) of feeling towards gay couples 
+-------------------------------------------------------------------------------
+
+Note that a feeling thermometer measures how
+warmly respondents feel toward gay couples on a 0-100 scale.
+
+## Question 1
+
+In the gay marriage study, researchers used seven waves of a
+  survey to assess how lasting the persuasion effects were over time.
+  One irregularity the scholars found is that responses across survey
+  waves in the control group (where no canvassing occurred) had
+  unusually high correlation over time.  What is the correlation
+  between respondents' feeling thermometer ratings in waves 1 and 2
+  for the control group in Study 1?  To handle missing data, we should
+  set the `use` argument of the `cor` function to
+  `"complete.obs"` so that the correlation is computed using
+  only observations that have no missing data in any of these
+  observations.  Provide a brief substantive interpretation of the
+  results.
+
+## Answer 1
+
+```{r}
+gay.reshaped <- read.csv("data/gayreshaped.csv")
+## Subset Study 1 Control Group
+gay1.control <- subset(gay.reshaped, (study == 1) &
+                           (treatment == "No Contact"))
+## Compute correlation
+cor(gay1.control$therm1, gay1.control$therm2, use = "complete.obs")
+```
+
+Given that correlation ranges from -1 to 1, the responses at the
+two waves in Study 1 have a nearly perfect positive correlation.  This
+result implies that the measured attitudes in this study were
+unusually stable over time.  In typical panel studies in which the
+same individual respondents are interviewed multiple times, we often
+find lower correlations between responses over time because people are
+prone to changing their responses in either systematic or
+idiosyncratic ways across multiple waves of a survey.
+
+## Question 2
+
+Repeat the previous question, using Study 2 and comparing all
+  waves within the control group.  Note that the `cor` function
+  can take a single `data.frame` with multiple variables.  To
+  handle missing data in this case, we can set the `use`
+  argument to `"pairwise.complete.obs"`. This means that the
+  `cor` function uses all observations which have no missing
+  values for a given pair of waves even if some of them have missing
+  values in other waves.  Briefly interpret the results.
+  
+## Answer 2
+
+```{r}
+## Study 2 Control group
+gay2.control <- 
+    subset(gay.reshaped, (study == 2) & (treatment == "No Contact"))
+## Create dataframe with just thermometer ratings
+gay2.therms <- subset(gay2.control, select = 
+                          c("therm1","therm2", "therm3", "therm4"))
+## Compute correlation
+cor(gay2.therms, use = "pairwise.complete.obs")
+```
+
+The results for Study 2 are consistent with what we found in Study 1.
+All correlations are extremely high.
+
+## Question 3
+
+Most surveys find at least some *outliers* or individuals
+  whose responses are substantially different from the rest of the
+  data.  In addition, some respondents may change their responses
+  erratically over time. Create a scatterplot to visualize the
+  relationships between wave 1 and each of the subsequent waves in
+  Study 2.  Use only the control group.  Interpret the results.
+
+## Answer 3
+
+```{r}
+par(cex = 1.25)
+plot(gay2.control$therm1, gay2.control$therm2,
+     xlab = "Baseline", ylab = "Wave 2")
+plot(gay2.control$therm1, gay2.control$therm3, 
+     xlab = "Baseline", ylab = "Wave 3")
+plot(gay2.control$therm1, gay2.control$therm4, 
+     xlab = "Baseline", ylab = "Wave 4")
+```
+
+The figures show no respondents who exhibited changes in their feeling
+thermometer responses that are out of step with the general pattern of
+responses in the data. This is highly unusual for data that are
+alleged to have been drawn from actual survey participants.
+
+## Question 4
+
+The researchers found that the data of the gay marriage study
+  appeared unusually similar to the 2012 CCAP dataset even though they
+  were supposed to be samples of completely different respondents. We
+  use the data contained in `ccap2012.csv` and
+  `gayreshaped.csv` to compare the two samples. Create a
+  histogram of the 2012 CCAP feeling thermometer, the wave 1 feeling
+  thermometer from Study 1, and the wave 1 feeling thermometer from
+  Study 2.  There are a large number of missing values in the CCAP
+  data.  Consider how the missing data might have been recoded in the
+  gay marriage study.  To facilitate the comparison across histograms,
+  use the `breaks` argument in the `hist` function to
+  keep the bin sizes equal cross histograms.  Briefly comment on the
+  results.
+  
+## Answer 4
+
+```{r}
+par(cex = 1.25)
+## Subset Study 1 and 2 Wave 1 Feeling Thermometers
+gay1 <- subset(gay.reshaped, (study == 1))
+gay2 <- subset(gay.reshaped, (study == 2))
+hist(gay1$therm1, freq = FALSE, breaks = 20, ylim = c(0, 0.05),
+     xlab = "Feeling Thermometer", main = "Study 1, Baseline")
+hist(gay2$therm1, freq = FALSE, breaks = 20, ylim = c(0, 0.05),
+     xlab = "Feeling Thermometer", main = "Study 2, Baseline")
+
+## Load CCAP data
+ccap <- read.csv("data/ccap2012.csv")
+hist(ccap$gaytherm, freq = FALSE, breaks = 20, ylim = c(0, 0.05), 
+     xlab = "Feeling Thermometer", main = "CCAP: without missing data")
+## proportion of observations that are equal to 50
+mean(gay1$therm1 == 50)
+mean(gay2$therm1 == 50)
+## Replace NAs with 50
+ccap$gaytherm[is.na(ccap$gaytherm)] <- 50
+hist(ccap$gaytherm, freq = FALSE, breaks = 20, ylim = c(0, 0.05), 
+     xlab = "Feeling Thermometer", 
+     main = "CCAP: with missing data as 50")
+```
+
+Comparing the two histograms from the gay marriage study to the
+histogram of CCAP, we observe that the distributions are quite similar
+except one bin in the gay marriage study histogram is not as tall as
+the histograms of the gay marriage study.  A large fraction of
+observations of the gay marriage data exactly equal 50.  Once we
+recode missing values in the gay marriage study data as 50, the CCAP
+histogram is indistinguishable from the gay marriage study histograms.
+
+## Question 5
+
+A more direct way to compare the distribution of two samples is
+  through a *quantile-quantile plot*. Use this visualization
+  method to conduct the same comparison as in the previous
+  question. Briefly interpret the plots.
+
+## Answer 5
+
+```{r}
+par(cex = 1.25)
+qqplot(ccap$gaytherm, gay1$therm1, xlab = "CCAP", 
+       ylab="Study 1, Baseline")
+qqplot(ccap$gaytherm, gay2$therm1, xlab = "CCAP", 
+       ylab="Study 2, Baseline")
+```
+
+In a quantile-quantile plot, points above (below) the 45 degree line
+would indicate that the variable plotted on the vertical axis has a
+greater (smaller) quantile value than the variable on the horizontal
+axis. In both of these plots, all data points fall nearly directly on
+the 45-degree line. This implies that the distributions of the CCAP as
+well as gay marriage study, wave 1 data (first plot) and gay marriage
+study 1 and study 2, wave 1 data (second plot) are essentially
+identical. This is consistent with the claim that the study data were
+not collected as described. Instead, the data were likely generated
+from the 2012 CCAP data.
+

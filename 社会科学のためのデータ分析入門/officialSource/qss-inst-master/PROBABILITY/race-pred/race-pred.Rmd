@@ -1,0 +1,324 @@
+---
+title: "Predicting Race Using Demographic Information"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+In this exercise, we return to the problem of predicting the ethnicity of individual voters given their surname and residence location using Bayes' rule. This exercise is based on the following article: Kosuke Imai and Kabir Khanna. (2016). ["Improving Ecological Inference by Predicting Individual Ethnicity from Voter Registration Records."](https://doi.org/10.1093/pan/mpw001) *Political Analysis* 24(2): 263-272.
+
+In this exercise, we attempt to improve that prediction by taking into account demographic information such as age and gender. As done earlier, we validate our method by comparing our predictions with the actual race of each voter.
+
+------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `county`            County census id of voting district.
+ 
+ `VTD`               Voting district census id (only unique within county)
+ 
+ `total.pop`         Total population of voting district
+------------------------------------------------------------------------------
+
+Other variables are labeled in three parts, each separated by a period. See below for each part. Each column contains the proportion of people of that gender, age group, and race in the voting district. 
+
+------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `gender`            Male or female
+ 
+ `age groups`        Age groups as defined by U.S. Census (see table below)
+ 
+ `race`              Different racial categories (see table below)
+------------------------------------------------------------------------------
+
+ Below is the table for variables describing racial categories:
+
+------------------------------------------------------------------------------ 
+  Name               Description
+ ------------------- ---------------------------------------------------------
+ `whi`               non-Hispanic whites in the voting district
+ 
+ `bla`               non-Hispanic blacks in the district
+ 
+ `his`               Hispanics
+ 
+ `asi`               non-Hispanic Asian and Pacific Islanders
+ 
+ `oth`               other racial categories
+ 
+ `mix`               non-Hispanic people of two or more races.
+------------------------------------------------------------------------------
+ 
+ Below is the table for age-group variables, as defined by the U.S. Census: 
+ 
+------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `1`                 18--19
+ 
+ `2`                 20--24
+ 
+ `3`                 25--29
+ 
+ `4`                 30--34
+ 
+ `5`                 35--39
+ 
+ `6`                 40--44
+ 
+ `7`                 45--49
+ 
+ `8`                 50--54
+ 
+ `9`                 55--59
+ 
+ `10`                60--64
+ 
+ `11`                65--69
+ 
+ `12`                70--74
+ 
+ `13`                75--79
+ 
+ `14`                80--84
+ 
+ `15`                85+
+------------------------------------------------------------------------------
+ 
+We use three data sets in this exercises, two of which were already introduced in Section 6.1. The first data set is a random sample of 10,000 registered voters contained in the csv file, `FLVoters.csv`. Table 6.1 presents the names and descriptions of variables for this data set.  The second data set is a csv file, `cnames.csv`, containing a modified version of
+the original data set, `names.csv`, after making appropriate adjustments about a special value as done in Section 6.2.  Table 6.3 presents the names and descriptions of variables in this data set.  Finally, the third data set, `FLCensusDem`, contains the updated census
+data with two additional demographic variables -- gender and age. Unlike the other census data we analyzed earlier, each observation of this data set consists of one voting district and the proportion of each demographic by age, gender, and race within that district. The tables above present the names and descriptions of variables in this data set of Florida districts. There is also a table that contains the age groupings used in the variable names of the `FLCensusDem.csv` file.
+
+## Question 1
+
+Use Bayes' Rule to find a formula for the probability that a voter belongs to a given racial group conditional on their age, gender, surname, and residence location.  Given the data sets we have, can we use this formula to predict each voter's race?  If the answer is yes, briefly explain how you would make the prediction. If the answer is no, explain why you cannot apply the formula you derived.
+
+## Answer 1
+
+The quantity we wish to calculate is:
+
+$$
+  P(\text{race} \mid \text{surname}, \text{residence}, \text{age}, \text{gender})
+$$
+
+Using Bayes' Rule, we find that this is equivalent to:
+
+$$  
+\frac{P(\text{residence}, \text{age}, \text{gender} \mid \text{race}, \text{surname}) 
+    P(\text{race} \mid \text{surname})}{P(\text{residence}, \text{age}, \text{gender} \mid \text{surname})} 
+$$
+
+We do not have the ability to calculate $P(\text{residence}, \text{age}, \text{gender} \mid \text{race}, \text{surname})$, because we do not have residence, age, and gender breakdowns by surname. We will have to make a simplifying assumption in order to calculate this quantity.
+
+## Question 2
+
+Assume that, given the person's race, the surname is conditionally independent from residence, age, and gender. Express this assumption mathematically and also substantively interpret. Show that under this assumption, the probability that a voter belongs to a given racial group conditional on their age and gender as well as their surname and residence location is given by the following formula.
+
+$$
+    \frac{P(\text{residence}, \text{age}, \text{gender} \mid \text{race}) 
+      P(\text{race} \mid \text{surname})}{P(\text{residence}, \text{age}, \text{gender} \mid \text{surname})}    
+$$
+
+## Answer 2
+
+The conditional independence assumption is that we do not learn  additional information about an individual's residence, age, or gender, once age is accounted for. This is mathematically expressed as follows:
+
+$$
+  P(\text{residence}, \text{age}, \text{gender} \mid
+  \text{race}, \text{surname}) \ = \ 
+  P(\text{residence}, \text{age}, \text{gender} \mid \text{race}) 
+$$
+
+This is probably a fairly reasonable assumption, since surnames are assigned to people regardless of their age and gender, although it is possible that some surnames might be more common in some geographic areas than others. Once this expression is substituted into the Bayes' Rule expression from Question 1, then we have the formula given in the question.
+
+## Question 3
+
+ Using the formula derived in the previous question, we wish to compute the predicted probability that a voter belongs to a given racial group, conditional on their age and gender as well as their surname and residence location.  Provide a step-by-step explanation of how to do this computation using the data. Hint: you will need to modify the formula without invoking an additional assumption such that all quantities can be computed from the data sets we have. The definition of conditional probability and the law of total probability might be useful.
+ 
+## Answer 3
+
+By the definition of conditional probability, we can re-express the first term in the numerator:
+
+$$
+P(\text{residence}, \text{age}, \text{gender} \mid
+\text{race}) \ = \ 
+\frac{P(\text{race}, \text{residence}, \text{age}, \text{gender})}{P(\text{race})} 
+$$
+
+Using the law of total probability, we can also expand the denominator:
+
+$$
+P(\text{residence}, \text{age}, \text{gender} \mid \text{surname}) \\ = \sum_{\text{race}} 
+P(\text{residence}, \text{age}, \text{gender} \mid \text{race}) 
+P(\text{race} \mid \text{surname}) 
+$$
+
+Note that because we have the population numbers for each voting district in `FLCensusDem.csv`, in addition to the race, age, and gender breakdown of each district, we can calculate each of these values.
+
+## Question 4
+
+Use the procedure described in the previous question, compute the predicted probability for each voter in the `FLVoters.csv` that the voter belongs to a given racial group conditional on their age, gender, surname and residence location.  Exclude the voters with missing data from your analysis. Also, note that the csv file `cnames.csv` has been processed from `names.csv` using the code from Section 6.1. Thus, there is no need to re-adjust the values to account for negligibly small race percentages, but the racial proportions by surname are initially expressed as percentages rather than as decimals.
+
+## Answer 4
+
+First, to obtain:
+
+$$
+P(\text{residence}, \text{age}, \text{gender} \mid
+\text{race})
+$$
+
+we calculate
+
+$$
+P(\text{race}, \text{residence}, \text{age}, \text{gender})
+$$
+
+as a proportion of the total population, and divide by $P(\text{race})$:
+
+```{r}
+census <- read.csv("data/FLCensusDem.csv")
+## P(residence, race, age, gender) as proportion of total population
+resrag.prop <- census[, 4:183] * census$total.pop / 
+    sum(census$total.pop)
+## P(race) as sum of all combos of residence/age/gender by race
+race.prop <- c(sum(rowSums(resrag.prop[,1:30])), 
+               sum(rowSums(resrag.prop[,31:60])),
+               sum(rowSums(resrag.prop[,61:90])),
+               sum(rowSums(resrag.prop[,91:120])), 
+               sum(rowSums(resrag.prop[,121:150])),
+               sum(rowSums(resrag.prop[,151:180])))
+names(race.prop) <- c("white", "black", "hispanic", "asian", 
+                      "other", "mixed")
+## P(residence, age, gender | race) by dividing above
+resag.rcond <- cbind(census[,1:3], 
+                     resrag.prop[,1:30] / race.prop[1],
+                     resrag.prop[,31:60] / race.prop[2],
+                     resrag.prop[,61:90] / race.prop[3],
+                     resrag.prop[,91:120] / race.prop[4],
+                     resrag.prop[,121:150] / race.prop[5],
+                     resrag.prop[,151:180] / race.prop[6])
+```
+
+Each entry in `resag.rcond` now refers to the likelihood of an individual being that race, given that the individual is that age and gender and lives at that location.
+
+Second, we obtain $P(\text{race} \mid \text{surname})$ from `cnames.csv`:
+
+```{r}
+cnames <- read.csv("data/cnames.csv")
+cnames[,3:8] <- cnames[,3:8] / 100 # convert to decimal
+```
+
+Third, we import the individual voters file and convert the voters' 
+ages to the age categories in the census data:
+
+```{r}
+voters <- read.csv("data/FLVoters.csv")
+agebracket <- cbind(18:99, c(rep(1, 2), rep(2, 5), rep(3, 5), 
+                             rep(4, 5), rep(5, 5), rep(6, 5),
+                             rep(7, 5), rep(8, 5), rep(9, 5),
+                             rep(10, 5), rep(11, 5), rep(12, 5),
+                             rep(13, 5), rep(14, 5), rep(15, 15)))
+colnames(agebracket) <- c("age", "agegrp")
+voters <- merge(voters, agebracket, by = "age")
+voters <- voters[is.na(voters$gender) == FALSE & 
+                   is.na(voters$age) == FALSE,] # drop missing
+```
+
+Fourth, we calculate $P(\text{residence}, \text{age}, \text{gender} \mid \text{surname})$
+(the denominator), and the numerator of the formula for each individual:
+
+```{r}
+## merge P(residence, age, gender|race) with voter data
+voters$category <- paste(voters$gender, voters$agegrp, sep = ".")
+resag.rvoter <- matrix(NA, nrow = nrow(voters), ncol = 6)
+colnames(resag.rvoter) <- c("resag.whi", "resag.bla", "resag.his",
+                            "resag.asi", "resag.oth", "resag.mix")
+voters <- cbind(voters, resag.rvoter)
+
+for (i in c(1:nrow(voters))) {
+  temp <- subset(resag.rcond, subset = county == voters$county[i] & 
+                   VTD == voters$VTD[i], 
+                 select = c(paste(voters$category[i], "whi", 
+                                  sep = "."),
+                            paste(voters$category[i], "bla", 
+                                  sep = "."),
+                            paste(voters$category[i], "his", 
+                                  sep = "."),
+                            paste(voters$category[i], "asi", 
+                                  sep = "."),
+                            paste(voters$category[i], "oth", 
+                                  sep = "."),
+                            paste(voters$category[i], "mix", 
+                                  sep = ".")))
+  voters[i, 9:14] <- temp
+} # loop for proportion for each individual's location, age, gender
+
+## merge (watch order of races) and multiply by P(race | surname)
+voters <- merge(voters, cnames[, c(1, 3:4, 8, 5:7)], by = "surname")
+
+resag.scond <- voters[, 9:14] * voters[, 15:20]
+colnames(resag.scond) <- c("white", "black", "hispanic", "asian",
+                           "other", "mixed")
+voters <- cbind(voters, resag.scond)
+```
+
+## Question 5
+
+Given the results in the previous question, identify the most likely race for each individual in `FLVoters.csv`, given their surname, residence, age, and gender.
+
+## Answer 5
+
+For each individual, we identify the race that gives the maximum  probability. Note that calculating the denominator is not actually strictly necessary to do this, since all the denominators are the same:
+
+```{r}
+## assign best guesses
+voters$guess <- rep(NA, nrow(voters))
+voters$max <- apply(voters[,21:26], 1, max)
+voters$guess <- ifelse(voters$max == voters$white, "white",
+                       ifelse(voters$max == voters$black, "black",
+                              ifelse(voters$max == voters$hispanic,
+                                     "hispanic",
+                                     ifelse(voters$max == 
+                                              voters$asian, "asian",
+                                            ifelse(voters$max == 
+                                                     voters$other,
+                                                   "other", 
+                                                   "mixed")))))
+```
+
+## Question 6
+
+To validate this race prediction methodology, compare the race predictions you've made in the previous question with the self-reported races of the voters, specifically for white, black, Hispanic, and Asian voters. How often did you correctly predict the race of the individuals? How often did you get false positives? How does your model compare to the predictions made in Section 6.1 based on surname and residence location alone?
+
+## Answer 6
+
+```{r}
+## true positives
+white <- voters[voters$race == "white",]
+mean(white$guess == "white", na.rm = TRUE)
+
+black <- voters[voters$race == "black",]
+mean(black$guess == "black", na.rm = TRUE)
+
+hispanic <- voters[voters$race == "hispanic",]
+mean(hispanic$guess == "hispanic", na.rm = TRUE)
+
+asian <- voters[voters$race == "asian",]
+mean(asian$guess == "asian", na.rm = TRUE)
+
+## false positives
+guess.white <- voters[voters$guess == "white",]
+mean(guess.white$race != "white", na.rm = TRUE)
+
+guess.black <- voters[voters$guess == "black",]
+mean(guess.black$race != "black", na.rm = TRUE)
+
+guess.hispanic <- voters[voters$guess == "hispanic",]
+mean(guess.hispanic$race != "hispanic", na.rm = TRUE)
+
+guess.asian <- voters[voters$guess == "asian",]
+mean(guess.asian$race != "asian", na.rm = TRUE)
+```
+
+There is a modest reduction in the false positive rate for Asian voters, but for the most part, the addition of demographic covariates to the analysis does not improve our prediction model. Surname and location therefore appear to be much more crucial predictors of race.

@@ -1,0 +1,232 @@
+---
+title: "The Mark of a Criminal Record Revisited"
+output: pdf_document
+---
+
+In one of the additional exercises for Chapter 2, we analyzed data from an important field experiment by Devah Pager about the the effect of race and criminal record on employment: 
+
+["The Mark of a Criminal Record"](https://dx.doi.org/10.1086/374403). *American Journal of Sociology* 108(5):937-975. Look [here](https://youtu.be/nUZqvsF_Wt0) to watch Professor Pager discuss the design and result.  
+
+This is a follow-up exercise using the same data set.  Last time you encountered the paper, you described the different callback rates between groups. Now we are going to use what we've learned about statistical inference to better understand those patterns.  You are welcome---and even encouraged---to reuse code from that exercise.  In fact, in practice you often have to work with the same dataset many times, and writing good code the first time helps you reuse the code in future projects.
+
+The dataset is called `criminalrecord.csv`.  You may not need to use all of these variables for this activity.  We've kept these unnecessary variables in the dataset because it is common to receive a dataset with much more information than you need.
+
+---------------------------------------------------------------------------------------------------------
+Name                 Description
+-------------------- ------------------------------------------------------------------------------------
+`jobid`              Job ID number 
+
+`callback`           `1` if tester received a callback, `0` if the tester did not receive a callback.
+
+`black`              `1` if the tester is black, `0` if the tester is white.
+
+`crimrec`            `1` if the tester has a criminal record, `0` if the tester does not.      
+
+`interact`           `1` if tester interacted with employer during the job application, `0` if tester doesn't interact with employer.
+
+`city`               `1` is job is located in the city center, `0` if job is located in the suburbs. 
+
+`distance`           Job’s average distance to downtown.
+
+`custserv`           `1` if job is in the costumer service sector, `0` if it is not.
+
+`manualskill`        `1` if job requires manual skills, `0` if it does not.
+
+----------------------------------------------------------------------------------------------------------
+
+
+The problem will give you practice with:
+
+* re-using old code (optional)
+* constructing confidence intervals
+* difference-of-means tests
+* p-values
+* type I and type II errors
+
+## Question 1
+
+Begin by loading the data into R and explore the data. How many cases are there in the data?  Run `summary()` to get a sense of things. In how many cases is the tester black? In how many cases is he white? 
+
+## Answer
+
+```{r}
+audit <- read.csv("data/criminalrecord.csv")
+
+## (1) Number of observations
+dim(audit)
+
+## (2) quick summary
+summary(audit)
+
+## (3) White and black
+length(audit$jobid[audit$black == 1])
+length(audit$jobid[audit$black == 0])
+```
+
+There are `r nrow(audit)` observations.  There are `r length(audit$jobid[audit$black==1])` cases with black applicants and `r length(audit$jobid[audit$black==0])` cases with white applicants.
+
+## Question 2
+
+Now we examine the central question of the study. Calculate the proportion of callbacks for white applicants with a criminal record, white applicants without a criminal record, black applicants with a criminal record, and black applicants without a criminal record.
+
+## Answer 2
+
+```{r}
+## White Testers
+white <- subset(audit, black == 0)
+callback.white.crim <- mean(white[white$crimrec == 1, "callback"])
+callback.white.nocrim <- mean(white[white$crimrec == 0, "callback"])
+## Black Testers
+black <- subset(audit, black == 1)
+callback.black.crim <- mean(black[black$crimrec == 1, "callback"])
+callback.black.nocrim <- mean(black[black$crimrec == 0, "callback"])
+
+## Call back rate for white criminals
+callback.white.crim
+## Call back rate for white non-criminals
+callback.white.nocrim
+## Call back rate for black criminals
+callback.black.crim
+## Call back rate for black non-criminals
+callback.black.nocrim
+```
+
+The callback rate for whites with a criminal record was `r round(callback.white.crim, 3)` and the callback rate for whites without a criminal record was was `r round(callback.white.nocrim, 3)`.  The callback rate for blacks with a criminal record was `r round(callback.black.crim, 3)` and the callback rate for blacks without a criminal record was was `r round(callback.black.nocrim, 3)`.
+
+## Question 3
+
+Now consider the callback rate for white applicants with a criminal record.  Construct a 95% confidence interval around this estimate.  Also, construct a 99% confidence interval around this estimate.
+
+## Answer 3
+
+```{r}
+## here's one way
+white <- subset(audit, black == 0)
+p <- mean(white[white$crimrec == 1, "callback"])
+print(paste("p:", p))
+n <- sum(white$crimrec == 1)
+print(paste("n:", n))
+
+est.se <- sqrt((p * (1 - p)) / n)
+print(paste("Estimated se:", est.se))
+
+## 95% interval, rather than 1.96 you could use qnorm(0.975) see QSS Table 7.1
+lower.ci.95 <- p - 1.96 * est.se
+upper.ci.95 <- p + 1.96 * est.se
+
+## 99% interval, rather than 1.96 you could use qnorm(0.995) see QSS Table 7.1
+lower.ci.99 <- p - 2.58 * est.se
+upper.ci.99 <- p + 2.58 * est.se
+
+## here's another way
+t.test(white[white$crimrec == 1, "callback"], conf.level = 0.95)
+t.test(white[white$crimrec == 1, "callback"], conf.level = 0.99)
+```
+
+The estimate for the callback rate for whites with a criminal record is `r round(p, 2)`.  A 95% confidence interval around this estimates is (`r round(lower.ci.95, 3)`, `r round(upper.ci.95, 3)`).  A 99% confidence interval around this estimates is (`r round(lower.ci.99, 3)`, `r round(upper.ci.99, 3)`).
+
+
+## Question 4
+
+Calculate the estimated effect of a criminal record for white applicants by comparing the callback rate in the treatment condition and the callback rate in the control condition.  Create a 95% confidence interval around this estimate.  Next, describe the estimate and confidence interval in a way that could be understood by a general audience.
+
+## Answer 4
+
+```{r}
+## here's the step-by-step way
+white <- subset(audit, black == 0)
+p.treat <- mean(white[white$crimrec == 1, "callback"])
+p.control <- mean(white[white$crimrec == 0, "callback"])
+est.ate <- p.treat - p.control
+n.treat <- sum(white$crimrec == 1)
+n.control <- sum(white$crimrec == 0)
+est.se.ate <- sqrt( (p.treat * (1 - p.treat) / n.treat) +  (p.control * (1 - p.control) / n.control))
+
+## Estimated average treatment effect
+est.ate
+## Estimated standard error of average treatment effect 
+est.se.ate
+
+## 95% interval, rather than 1.96 you could use qnorm(0.975) see Imai Table 7.1
+lower.ci.95 <- est.ate - 1.96 * est.se.ate
+upper.ci.95 <- est.ate + 1.96 * est.se.ate
+
+## Estimated confidence interval 
+c(lower.ci.95, upper.ci.95)
+
+## here's a different way
+## they give slightly different answers because 
+## the prop.test() function is doing something fancy (a "continuity correction")
+## that we did not learn about in class 
+call.backs <- rep(NA, 2)
+names(call.backs) <- c("white.crimrec", "white.nocrimrec")
+attempts <- rep(NA, 2)
+names(attempts) <- c("white.crimrec", "white.nocrimrec")
+
+call.backs["white.crimrec"] <- sum(audit$crimrec == 1 &
+                                      audit$black == 0 &
+                                      audit$callback == 1)
+call.backs["white.nocrimrec"] <- sum(audit$crimrec == 0 &
+                                      audit$black == 0 &
+                                      audit$callback == 1)
+
+attempts["white.crimrec"] <- sum(audit$crimrec == 1 &
+                                      audit$black == 0)
+attempts["white.nocrimrec"] <- sum(audit$crimrec == 0 &
+                                      audit$black == 0)
+
+## Checking inputs before passing into the function
+## call.backs
+call.backs
+## attempts
+attempts
+
+output <- prop.test(call.backs, attempts)
+output
+output[["conf.int"]]
+```
+
+The estimated effect of a criminal record on callback rates for whites is `r round(est.ate, 2)`.  The estimated 95% confidence interval is (`r round(lower.ci.95, 3)`, `r round(upper.ci.95, 3)`).
+
+Pager's study found that whites applicants with a criminal record were about `r 100 * abs(round(est.ate, 2))` percentage points less likely to be called back for a job interview. Given her sample size we can be pretty confident that the true callback rate in the population is between (`r round(lower.ci.95, 3)`, `r round(upper.ci.95, 3)`).
+
+## Question 5
+
+Assuming a null hypothesis that there is no difference in callback rates between white people with a criminal record and white people without a criminal record, what is the probability that we would observe a difference as large or larger than the one that we observed in a sample of this size?  
+
+## Answer 5
+
+```{r}
+## here's one way to do it
+white <- subset(audit, black == 0)
+p.treat <- mean(white[white$crimrec == 1, "callback"])
+p.control <- mean(white[white$crimrec == 0, "callback"])
+est.ate <- p.treat - p.control
+n.treat <- sum(white$crimrec == 1)
+n.control <- sum(white$crimrec == 0)
+est.se.ate <- sqrt((p.treat * (1 - p.treat) / n.treat) +  
+                      (p.control * (1 - p.control) / n.control))
+
+## see QSS pp. 352-353
+z <- est.ate / est.se.ate
+p.value <- 2 * pnorm(abs(z), lower.tail = FALSE)
+p.value
+
+## here's another way to do it
+t.test(white[white$crimrec == 1, "callback"], white[white$crimrec == 0, "callback"])
+```
+
+If there is no was no true difference in callback rates, we would observe a difference as large or larger than one that we observed with probability close to zero.
+
+## Question 6
+
+Imagine that we set up a hypothesis test where the null hypothesis is that there is no difference in callback rates between whites with and without a criminal record.  In the context of this problem, what would it mean to commit a type I error?  In the context of this problem, what would it mean to commit a type II error?  If we set $\alpha = 0.05$ for a two-tailed test are we specifying the probability of type I error or type II error?
+
+## Answer 6
+
+In the context of this problem, if we commit a type I error we would incorrectly conclude that there is an effect of a criminal record on callback rates when in fact there is no effect (i.e., rejecting the null hypothesis when it is true).  In other words, a type I error is like a false positive.
+
+In the context of this problem, if we commit a type II error we would incorrectly fail to conclude that a criminal record has an effect on callback rates when it does in fact have an effect (i.e., failing to reject the null hypothesis when it is false).  In other words, a type II error is like a false negative.
+
+When we set $\alpha = 0.05$ we are setting the probability of type I error. (See QSS, p. 347)
+

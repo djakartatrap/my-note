@@ -1,0 +1,322 @@
+---
+title: "Predicting the 2016 US Presidential Election"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+The U.S. president is elected by the electoral college -- 538 electors
+corresponding to 435 members of congress, 100 senators, and 3
+additional electors allocated to Washington D.C.. The number of
+electoral votes allocated to each state is equal to the size of its
+congressional delegation. And most states cast all their electoral
+votes for the candidate receiving a plurality of the state's votes in
+the general election (the *winner-takes-all* rule). Nebraska and Maine
+are the only two exceptions. These states allocate two electoral votes
+to the candidate receiving a plurality of the state's votes, and each
+of their remaining electoral votes go to the candidate receiving a
+plurality of votes within each of the states' congressional
+districts. But these are small and relatively homogeneous
+states. Maine has never actually split its electoral votes and
+Nebraska did it only once, casting a vote for Obama in 2008.
+
+A candidate must receive a simple majority of electoral college votes
+(270 votes) to be elected. But, as we have seen in 2000, it is
+possible for a candidate to win the election without receiving a
+plurality of the popular vote. In today's precept we will analyze
+state-level polls downloaded from the Huffington Post's Pollster
+(http://elections.huffingtonpost.com/pollster/polls) and 3 additional
+polls for Washington D.C. available at
+(http://www.electoral-vote.com/evp2016/Pres/pres_polls.txt) to predict
+the outcomes of the 2016 presidential election. We will predict the
+distribution of electoral college votes according to the
+*winner-takes-all* rule and using only the 3 most recent polls in each
+state and examine how this distribution changed over time, starting at
+90 days before the election.
+
+The dataset we will be using this week (`polls2016.csv`) has 
+`r nrow(read.csv("data/polls2016.csv"))` observations, each representing
+a different poll, and includes the following 
+`r ncol(read.csv("data/polls2016.csv"))` variables:
+
+-----------------------------------------------------------------------------
+Name                Description
+---------------     ---------------------------------------------------------
+`id`                Poll ID
+
+`state`             U.S. state where poll was fielded
+
+`Clinton`           The poll's estimated level of support for Hillary Clinton   
+                    (in percentage points) 
+
+`Trump`             The poll's estimated level of support for Donald Trump (in 
+                    percentage points)
+
+`days_to_election`  Number of days before November 4, 2016. 
+
+`electoral_votes`   Number of electoral votes allocated to the state where the poll was 
+                    fielded (a state-level variable)
+                    
+`population`        The poll's target population, which may be `Adults`, `Registered Voters`, 
+                    or `Likely Voters` 
+--------------------------------------------------------------------------------
+
+## Question 1
+
+We will begin by restricting our poll data to the 3 most recent polls
+in each state and computing the average support for each candidate by
+state. Create a scatterplot showing support for Clinton vs. support
+for Trump. Use state abbreviations to plot the results. Briefly
+interpret the results.
+
+**Hint:** To do this see the code in Section 4.1.3 of QSS. The only
+difference is that you will have to sort the polls by the
+`days_to_election` variable within each state.  Use the `sort()`
+function to sort the polls from the latest to the oldest.  When the
+`index.return` argument is set to `TRUE`, this function will return
+the ordering index vector, which can be used to extract the 3 most
+recent polls for each state.
+
+## Answer 1
+
+```{r}
+## load data:
+polls <- read.csv("data/polls2016.csv")
+## state names
+state.names <- unique(polls$state)
+## initialize prediction vectors
+Clinton.support <- Trump.support <- rep(NA, 51)
+names(Clinton.support) <- names(Trump.support) <- state.names
+for(i in 1:51){
+    state.data <- subset(polls, state == state.names[i]) # subset each state
+    idx <- sort(state.data$days_to_election, index.return = TRUE) # sort by date
+    state.recent <- state.data[idx$ix[1:3], ]  # use sorted index to get the 3 latest polls
+    Clinton.support[i] <- mean(state.recent$Clinton)
+    Trump.support[i] <- mean(state.recent$Trump)
+}
+## scatterplot
+plot(Trump.support, Clinton.support, type='n', xlim = c(15,80), ylim = c(15,80),
+     xlab = "Trump's Support", ylab = "Clinton's Support")
+## add state abbreviations instead of points
+text(Trump.support, Clinton.support, labels = state.names)
+## 45-degree line
+abline (a = 0, b = 1, lty = "dashed")
+```
+
+The scatterplot shows support for Clinton on the y-axis and Support
+for Trump on the x-axis. States where Trump is expected to win appear
+below the 45 degree line, which is indicated by a dashed line, and
+states where Clinton is expected to win appear above this line. States
+where both candidates have nearly the same level of support (see
+Arizona) appear along the 45 degree line. These are the potentially
+contested states. Nearly perpendicular to the 45 degree line we see
+the expected negative relationship between support for Clinton and
+Support for Trump. Utah is a notable outlier because Trump is only a
+few points ahead of Clinton there and neither candidate is broadly
+supported. Instead, an indepenent candidate, Evan McMullin, is doing
+well.
+
+## Question 2
+
+Based on the average support you calculated for Clinton and Trump,
+predict the winner of each state and allocate the corresponding
+electoral college votes to the predicted winner. While two states,
+Maine and Nebraska, do not apply the *winner-takes-all* rule to
+allocate their electoral votes, for the sake of simplicity, we will
+apply this rule uniformly across these states as well. If the support
+for the two candidates in a given state is identical, split the
+state's electoral votes. Who do you predict will win the election? How
+many electoral college votes do you predict each candidate will
+receive?
+
+## Answer 2
+
+We can do this with a loop, which is intuitive:
+
+```{r}
+## Electoral votes for each state
+ev <- tapply(polls$electoral_votes, polls$state, mean)
+Clinton <- Trump <- 0 # candidates' electoral votes
+for (i in 1:length(ev)) {
+  if (Trump.support[i] > Clinton.support[i]) { # Trump wins
+    Trump <- Trump + ev[state.names[i]]
+  } else if (Trump.support[i] < Clinton.support[i]) { # Clinton wins
+    Clinton <- Clinton + ev[state.names[i]]
+  } else { # a tie
+    Clinton <- Cliinton + ev[state.names[i]] / 2
+    Trump <- Trump + ev[state.names[i]] / 2
+  }  
+}
+names(Clinton) <- "Cinton EV"
+names(Trump) <-"Trump EV"
+## total predicted eletoral votes
+Clinton
+Trump
+```
+
+Alternatively, we can do it without a loop, which is a little trickier:
+
+```{r}
+## sort electoral votes to the order states appear in the data 
+ev.sorted <- ev[state.names]
+## Clinton's electoral votes
+sum(ev.sorted[Clinton.support > Trump.support])
+## Trump's electoral votes
+sum(ev.sorted[Clinton.support < Trump.support])
+## check to see if there is any tie
+sum(Clinton.support == Trump.support)
+```
+
+Using only the 3 most recent polls for each state, we predict that
+Clinton will be elected president, receiving `r Clinton` electoral
+votes compared to Trump's `r Trump`.
+
+## Question 3
+
+Let's examine how our predictions may have differed if we had used
+only polls based on *likely voters*.  Since we have fewer polls that
+are based on likely voters, for each state compute the average of the
+most recent poll (based on the `days_to_election` variable) and those
+conducted within 30 days from it.  In addition, assume that Clinton
+will win Washington DC. How does the result change when compared to
+Question 2?  Repeat the question but this time using the polls based
+on *registered voters*.  Briefly interpret the results.
+
+## Answer 3
+
+```{r}
+## Subset poll data
+likely <- subset(polls, population == "Likely Voters")
+registered <- subset(polls, population == "Registered Voters")
+## electoral college votes
+Clinton.likely <- Clinton.registered <- Trump.likely <- Trump.registered <- 0
+for (i in 1:51){
+    if (state.names[i] == "DC") {
+      Clinton.likely <- Clinton.likely + ev["DC"]
+      Clinton.registered <- Clinton.registered + ev["DC"]
+    } else {
+      ## subset data for state
+      likely.state <- subset(likely, state == state.names[i])
+      registered.state <- subset(registered, state == state.names[i])
+      ## date of the latest poll within state
+      latest.likely <- min(likely.state$days_to_election)
+      latest.registered <- min(registered.state$days_to_election)
+      ## further subset the polls
+      polls.likely <- subset(likely.state, days_to_election <= (latest.likely + 30))
+      polls.registered <- subset(registered.state, days_to_election <= (latest.registered + 30))
+      ## compute the average support
+      C.likely <- mean(polls.likely$Clinton)
+      T.likely <- mean(polls.likely$Trump)
+      C.registered <- mean(polls.registered$Clinton)
+      T.registered <- mean(polls.registered$Trump)
+      ## electoral college votes allocation
+      if (C.likely > T.likely) {
+        Clinton.likely <- Clinton.likely + ev[state.names[i]]
+      } else if (C.likely < T.likely) {
+        Trump.likely <- Trump.likely + ev[state.names[i]]
+      } else {
+        Clinton.likely <- Clinton.likely + ev[state.names[i]] / 2
+        Trump.likely <- Trump.likely + ev[state.names[i]] / 2
+      }
+      if (C.registered > T.registered) {
+        Clinton.registered <- Clinton.registered + ev[state.names[i]]
+      } else if (C.registered < T.registered) {
+        Trump.registered <- Trump.registered + ev[state.names[i]]
+      } else {
+        Clinton.registered <- Clinton.registered + ev[state.names[i]] / 2
+        Trump.registered <- Trump.registered + ev[state.names[i]] / 2
+      }
+    } 
+}
+names(Clinton.likely) <- "Clinton, likely voters"
+names(Trump.likely) <- "Trump, likely voters"
+names(Clinton.registered) <- "Clinton, registered voters"
+names(Trump.registered) <- "Trump, registered voters"
+## likely voters
+Clinton.likely
+Trump.likely
+## registered voters
+Clinton.registered
+Trump.registered
+```
+
+Both among likely voters and among registered voters, the number of
+electoral votes predicted for Clinton is higher when we used the most
+recent polls than when we averaged the three most recent polls in
+Question 2. Comparing the latest polls of likely voters to the latest
+polls of registered voters, we see that the polls of likely voters
+were less favorable to Clinton than the polls of registered
+voters. Using the latest polls of likely voters we predicted that
+Clinton would receive `r Clinton.likely` electoral votes vs. `r
+Trump.likely` for Trump. Restricting our analysis to polls of
+registered voters, we predicted that Clinton would receive `r
+Clinton.registered` electoral votes versus `r Trump.registered` for
+Trump.
+
+## Question 4
+
+Finally, we examine how poll predictions have changed over the past
+few weeks. Starting at 60 days before the election, and for each day,
+repeat the same analysis as the one conducted for Question 1. That is,
+for each day, we take the 3 latest polls (or fewer if only one or two
+is available) for each state and compute the average support
+separately for Clinton and Trump within each state. We then allocate
+the electoral votes of that state based on its predicted winner. Use a
+time series plot to present the predicted total number of electoral
+votes for each candidate. Add the winning line, i.e., an absolute
+majority of 270 votes, as a horizontal line. Briefly describe the
+results.
+
+**Hint:** You may want to create a nested loop, in which an outer loop
+is for each day, starting 60 days before the election and stopping
+on the day of the most recent poll, and an inner loop is used to
+calculate support for each candidate by state using the 3 most
+recent polls on any given day.
+
+## Answer 4
+
+```{r}
+## number of days for prediction
+days <- 60 - min(polls$days_to_election) + 1
+## set-up prediction vectors
+Clinton <- Trump <- rep(0, days)
+for (i in 1:days){ # loop for days
+    polls.day <- subset(polls, days_to_election >= (60 - i + 1))
+    for (j in 1:51){ # loop for states
+        state.data <- subset(polls.day, state == state.names[j])
+        idx <- sort(state.data$days_to_election, index.return = TRUE) # sort by date
+        state.recent <- state.data[idx$ix[1:3], ]  # use sorted index to get the 3 latest polls
+        Clinton.state <- mean(state.recent$Clinton, na.rm = TRUE)
+        Trump.state <- mean(state.recent$Trump, na.rm = TRUE)
+        if (Clinton.state > Trump.state) {
+          Clinton[i] <- Clinton[i] + ev[state.names[j]]
+        } else if (Clinton.state < Trump.state) {
+          Trump[i] <- Trump[i] + ev[state.names[j]]
+        } else {
+          Clinton[i] <- Clinton[i] + ev[state.names[j]] / 2
+          Trump[i] <- Trump[i] + ev[state.names[j]] / 2
+        }
+    }
+}
+
+## plot time series from 60 days to date of last polls
+plot(60:min(polls$days_to_election), Clinton, type = 'l', xlim = c(60, 0), ylim = c(100, 400), 
+     col = 'blue', xlab = 'Days to the election', ylab = 'Electoral votes')
+lines(60:min(polls$days_to_election), Trump, type = 'l', col = 'red')
+## add a line for 270 electoral votes
+abline(h = 270)
+## label candidates
+text(50, 160, 'Trump', col = 'red')
+text(50, 360, 'Clinton', col = 'blue')
+```
+
+The graph shows how the predicted number of electoral votes for each
+candidate changed over the last `r days` days, starting at 60 days
+before the election. On each day the number of electoral votes for
+each candidate was predicted by the 3 most recent available polls in
+each state (or fewer polls when 3 polls were not yet
+available). Results above the horizontal line at 270 electoral votes
+show which candidate is predicted to win the election. The number of
+electoral votes predicted for each candidate changed over the 42 days
+we analyzed, but support for Clinton has not dropped below the 270
+votes line.

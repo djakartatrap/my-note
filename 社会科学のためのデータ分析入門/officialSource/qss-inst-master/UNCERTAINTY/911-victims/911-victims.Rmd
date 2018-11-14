@@ -1,0 +1,404 @@
+---
+title: "Long-Term Effects of 9/11 on the Political Behavior of Victims' Families"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+In this exercise, we examine a hypothesis that individuals who lost
+someone in the terrorist attacks of 9/11, whether a family relative or
+a neighbor, will have become more politically engaged.
+
+This exercise is based on: Hersh, E. D. 2013. “[Long-Term Effect of September 11 on the Political Behavior of Victims’ Families and Neighbors.](http://dx.doi.org/10.1073/pnas.1315043110)” *Proceedings of the National Academy of Sciences* 110(52): 20959–63. 
+
+We will examine this hypothesis
+using several different estimation techniques, focusing throughout on
+the effect of the attacks on the victims' families rather than their
+neighbors. The CSV data file, `victims9-11.csv`, contains the
+following variables:
+
+------------------------------------------------------------------------------
+ Name                Description
+ ------------------- ---------------------------------------------------------
+ `voter.id`          Unique identifiers of relatives and neighbors of the 
+                     victims 
+                     
+ `treatment`         Families and neighbors of actual victims (1) vs control 
+                     group (0)
+ 
+ `victim.status`     Families (2) vs neighbors (3) of victims and controls
+ 
+ `ge20xx`            Voting in the `20xx` general election (`Y`=at the polls, 
+                     `A`=absentee, `E`=early, `M`=by mail) 
+ 
+ `fam.members`       Number of family members living with voter at their address 
+ 
+ `age`               Voter's age 
+ 
+ `party`             Voter's party affiliation (`D`=Democrat, `R`=Republicans, 
+                     `N`=no affiliation) 
+ 
+ `sex`               Voter's sex
+ 
+ `pct.white`         Proportion of non-Hispanic white voters living on the same 
+                     block 
+ 
+ `median.income`     Median income of voters living on the same block  
+------------------------------------------------------------------------------
+
+Voters were
+included in the data on the basis of their relationship to actual
+victims - these constitute the two treatment groups - or if no
+such relationship existed but they were, otherwise, sufficiently
+similar to voters in the treatment groups - this constitutes the
+control group. 
+
+## Question 1
+
+We begin by reformatting the data to facilitate our analysis.
+The three variables that contain non-numerical values are sex,
+party, and voting records. Rewrite these variables using the
+following coding rules: for the party variable, assign the value of
+$1$ to all Democrats, $-1$ to all Republicans, and $0$ for all other
+parties and non-affiliated citizens; for the sex variable, assign
+the value of $1$ to all female citizens and $0$ to all male
+citizens; finally, for each of the seven voting record variables,
+assign the value of $1$ if the individual voted in a given election,
+and $0$ otherwise.
+
+## Answer 1
+```{r}
+victims <- read.csv("data/911-victims.csv")
+
+# Recode the party and sex variables
+victims$party <- ifelse(victims$party == "D", 1, 
+                        ifelse(victims$party == "R", -1, 0))
+victims$sex <- ifelse(victims$sex == "F", 1, 0)
+
+# Create a vector denoting the unique general election years
+years <- seq(from= 2000, to=2012, by=2)
+
+## Recode each of the seven turnout variables,
+## where the loop isolates one turnout variable at a time
+for (i in 1:length(years)) {
+  voting.rec <- victims[,paste("ge", years[i], sep="")]
+  victims[,paste("ge", years[i], sep="")] <- 
+    ifelse(voting.rec == "A" | voting.rec == "Y" | 
+             voting.rec == "E" | voting.rec == "M", 1, 0)
+}
+```
+
+## Question 2
+
+We will now test the hypothesis. Calculate the sample Average
+Treatment Effect of the terrorist attacks on voter turnout
+separately for each of the seven general elections between 2000 and
+2012. Focus on families of victims as the treatment, and disregard
+the neighbor category. For each of the seven point-estimates,
+compute the corresponding standard error.  Assume that both the
+treatment and control groups form two random samples, and that the
+two samples are statistically independent. Then, using the quantiles
+of the standard normal distribution, calculate the 95% confidence
+intervals for each of the seven point-estimates. Plot the results
+where the horizontal axis represents the elections.  Provide a brief
+interpretation, with a particular focus on the meaning of the
+confidence intervals you computed.
+
+## Answer 2
+
+```{r}
+diff.in.means <- vector()
+std.errors <- vector()
+
+for (i in 1:length(years)) {
+  voting.rec <- victims[,paste("ge", years[i], sep="")]
+  treatment <- na.omit(voting.rec[victims$treatment == 1 & 
+                                 victims$victim.status == 2])
+  control <- na.omit(voting.rec[victims$treatment == 0 & 
+                                 victims$victim.status == 2])
+  
+  diff.in.means[i] <- mean(treatment) - mean(control)
+  
+  std.errors[i] <- sqrt(var(treatment)/length(treatment) +
+                       var(control)/length(control))
+}
+par(mar=c(4,5,3,2))
+plot(years, diff.in.means, pch = 17, col = "red",
+     ylim = c(-0.04, 0.08), ylab = "Difference in Turnout,
+     Family - Control", xlab = "Year of General Election",
+     main = "Victims' Families Relative to Control")
+
+abline(h=0)
+abline(v=2001.75)
+text("Attacks of September 11", x=2004.4, y=0.06)
+
+segments(x0=years, y0=diff.in.means - std.errors * 1.96,
+         x1=years, y1=diff.in.means + std.errors * 1.96, 
+         lty=2)
+```
+
+The ATE for the year 2000, before the attacks of 9/11, functions as 
+a placebo for the validity of our estimation strategy. If the treatment
+and control groups were balanced prior to the administration of treatment,
+then the ATE for 2000 should yield an effect of exactly 0, which is what we
+observe. 
+
+Furthermore, with the exception of the 2004 election, we observe a 
+consistently positive effect of the attacks on voter turnout, and it
+does not appear to decay with time. Subject to the validity of ATE
+as estimation strategy (that is, subject to the assumption that the
+treatment and control groups were balanced prior to the administration
+of the treatment), this analysis lends support to the acitivation hypothesis.
+
+Nevertheless, we notice that the confidence intervals for the 2002, 2004,
+2006, and 2008 elections include the value of 0 (null effect). This means
+that our causal effect estimates for those years are statistically 
+indistinguishable from 0 at the 5% significance level. The only
+significant results are for the years of 2010 and 2012, nearly ten 
+years after the attacks.
+
+## Question 3
+
+To examine the validity of the cross-sectional comparisons
+conducted in Question 2, check whether possible confounders are
+balanced between the treatment and control groups. Compare the means
+of the last six variables in the table above across the two
+groups along with their 95\% confidence intervals.  Provide a brief
+interpretation of the results. What can you conclude about the
+validity of the cross-sectional comparisons?
+
+## Answer 3
+
+```{r}
+covariates <- colnames(victims)[11:16]
+cov.balance <- vector()
+cov.se <- vector()
+
+for (i in 1:length(covariates)) {
+  covariate <- victims[,covariates[i]]
+  treatment <- na.omit(covariate[victims$treatment == 1 & 
+                                 victims$victim.status == 2])
+  control <- na.omit(covariate[victims$treatment == 0 & 
+                                 victims$victim.status == 2])
+  
+  cov.se[i] <- sqrt(var(treatment) / length(treatment) + 
+                   var(control) / length(control))
+  
+  cov.balance[i] <- mean(treatment) - mean(control)
+}
+
+## Calculate the difference in means
+cov.balance
+
+## Calculate the lower bound of the 
+## confidence intervals
+cov.balance - qnorm(0.975) * cov.se
+
+## Calculate the upper bound of the 
+## confidence intervals
+cov.balance + qnorm(0.975) * cov.se
+```
+
+If the treatment and control groups are properly randomized,
+the means on the six possible confounders should be similar
+across the two groups. While none of the point-estimates are
+exactly zero, the value of zero is included in each of the six
+confidence intervals. That means that, at the 5% significance
+level, the means of the two groups are statistically 
+indistinguishable from one another across the six variables. 
+The magnitude of observed differences between them is consistent
+with what we would expect to see purely by chance. 
+
+This confirms the validity of the ATE as an unbiased estimate of
+the true causal effect, as calculated in the previous question.
+
+## Question 4
+
+Now, focus on the treatment group only. Compute the
+before-and-after estimate of the effect of the terrorist attacks on
+voter turnout for families of the victims by using the 2000 general
+election as a baseline for each of the subsequent six general
+elections. Next, calculate the standard errors corresponding to the
+six point-estimates.  Using the standard errors, compute the 95%
+confidence intervals for each of the six point-estimates.  Plot the
+results. Provide a brief interpretation of your
+findings. **Hint**: Since you are now tracing the
+same sample evolve through time, you can no longer assume the
+independence of sample means in calculating the standard errors;
+take care to incorporate the covariance between voter turnout in 2000
+and a subsequent election into your calculations.
+
+## Answer 4
+```{r}
+before.after <- vector()
+std.errors.ba <- vector()
+
+for (i in 2:length(years)) {
+  voting.rec <- na.omit(victims[victims$treatment == 1 & 
+                                 victims$victim.status == 2
+                        ,c("ge2000", 
+                           paste("ge", years[i], sep=""))])
+  
+  treatment.before <- voting.rec[,1]
+  treatment.after <- voting.rec[,2]
+  
+  before.after[i-1] <- mean(treatment.after - treatment.before)
+  
+  n <- length(treatment.before)
+  
+  std.errors.ba[i-1] <- sqrt(var(treatment.after)/n +
+                       var(treatment.before)/n - 
+                         (2/n) * cov(treatment.after, treatment.before))
+}
+
+par(mar=c(4,5,3,2))
+plot(years[-1], before.after, pch = 17, col = "red",
+     ylim = c(-0.25, 0.08), ylab = "Difference in Turnout,
+     After - Before (2000)", xlab = "Year of General Election",
+     main = "Longitudinal Analysis of Victims' Families\n (treatment only)")
+
+abline(h=0)
+
+for (i in 2:length(years)) {
+  segments(x0=years[i], y0=before.after[i-1] - 
+             std.errors.ba[i-1] * 1.96,
+           x1=years[i], y1=before.after[i-1] + 
+             std.errors.ba[i-1] * 1.96,
+           lty=2)
+}
+```
+
+We can see that, with the exception of the estimate for the 2012
+election, all estimates are statistically significant (that is,
+statistically distinguishable from 0) at the 5% level. An 
+interesting trend emerges: following the 9/11 attacks, using
+the turnout in the 2000 election as our baseline, turnout
+increases for the subsequent presidential election years, with
+the exception of 2012, and declines for the midterm election
+years.
+
+Notice that we should be wary of endowing the before-and-after
+estimates with causal interptretations, as this overlooks the 
+possibility that the observed temporal trend may be consistent 
+with the one observed for the control group.
+
+## Question 5
+
+We will now repeat the same analysis as in Question 4, but now
+using voters in the control group only. As before, be sure to
+restrict your analysis to family relatives of control victims rather
+than their neighbors.  What does this analysis imply about the
+validity of the analysis in the previous question?
+
+## Answer 5
+
+```{r}
+before.after.ctrl <- vector()
+std.errors.ba.ctrl <- vector()
+
+for (i in 2:length(years)) {
+  voting.rec <- na.omit(victims[victims$treatment == 0 & 
+                                 victims$victim.status == 2,
+                        c("ge2000", paste("ge", years[i], sep=""))])
+  
+  ctrl.before <- voting.rec[,1]
+  ctrl.after <- voting.rec[,2]
+  
+  before.after.ctrl[i-1] <- mean(ctrl.after - ctrl.before)
+  
+  n <- length(ctrl.before)
+  
+  std.errors.ba.ctrl[i-1] <- sqrt(var(ctrl.after)/n +
+                       var(ctrl.before)/n - 
+                         2/n * cov(ctrl.after, ctrl.before))
+}
+
+par(mar=c(4,5,3,2))
+plot(years[-1], before.after.ctrl, pch = 17, col = "red",
+     ylim = c(-0.25, 0.05), ylab = "Difference in Turnout,
+     After - Before", xlab = "Year of General Election",
+     main = "Longitudinal Analysis of Victims' Families\n (control only)")
+
+abline(h=0)
+
+for (i in 2:length(years)) {
+  segments(x0=years[i], y0=before.after.ctrl[i-1] - std.errors.ba.ctrl[i-1] * 1.96,
+           x1=years[i], y1=before.after.ctrl[i-1] + std.errors.ba.ctrl[i-1] * 1.96,
+           lty=2)
+}
+```
+
+With the exception of the 2008 election, none of the confidence
+intervals contain the value of 0, so all of the other five
+estimates are statistically significant at the 5% level. Notice
+that the temporal trend of the before-and-after estimates are similar
+for the treatment and control groups, which strengthens our
+suspicion of the validity of the before-and-ater comparison for 
+the treatment group. 
+
+To isolate the effect of the treatment in a
+temporal perspective, we need to pool information from both 
+the treatment and control groups and account for the similarity
+of their temporal paths. Difference-in-differences is a suitable 
+estimation strategy for that.
+
+## Question 6
+
+Calculate the difference-in-differences estimate for the general
+elections immediately surrounding the attacks, 2000 and
+2002. Calculate the standard error for your estimate, and provide
+the 95% confidence interval.  Once again, you are allowed to use
+the quantiles of the standard normal distribution in calculating the
+confidence interval.  Provide a brief interpretation of the result.
+
+## Answer 6
+
+```{r}
+DiD <- before.after[1] - before.after.ctrl[1]
+DiD
+
+DiD.se <- sqrt(std.errors.ba[1]^2 + 
+                 std.errors.ba.ctrl[1]^2)
+
+ci <- c(DiD - DiD.se * 1.96, DiD + DiD.se * 1.96)
+ci
+```
+
+## Question 7
+
+Repeat the previous difference-in-differences analysis for all
+six elections following the attacks.  Throughout this analysis,
+use the 2000 election as the baseline as done in the previous
+question.  Plot the results with the horizontal axis representing
+different elections.  Provide a substantive interpretation of the
+results.
+
+## Answer 7
+```{r}
+DiDs <- before.after - before.after.ctrl
+DiDs
+
+DiDs.se <- sqrt(std.errors.ba^2 + std.errors.ba.ctrl^2)
+DiDs.se
+
+par(mar=c(4,5,3,2))
+plot(years[-1], DiDs, pch = 17, col = "red",
+     ylim = c(-0.04, 0.08), ylab = "Difference in Turnout", 
+     xlab = "Year of General Election",
+     main = "Longitudinal Analysis of Victims' Families
+     (Difference in Differences)")
+
+abline(h=0)
+
+for (i in 2:length(years)) {
+  segments(x0=years[i], y0=DiDs[i-1] - DiDs.se[i-1] * 1.96,
+           x1=years[i], y1=DiDs[i-1] + DiDs.se[i-1] * 1.96,
+           lty=2)
+}
+```
+
+The DiD estimates are similar to the SATE estimates, which is precisely
+what we would expect given the results of our placebo test in Question
+2. With the exception of the 2004 election, we observe a consistently
+positive effect, although the effect is only statistically significant at
+the 5% level for the 2010 and 2012 elections. 

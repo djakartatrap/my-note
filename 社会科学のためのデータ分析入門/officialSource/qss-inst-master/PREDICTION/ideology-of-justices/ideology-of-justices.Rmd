@@ -1,0 +1,199 @@
+---
+title: "Ideology of US Supreme Court Justices"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+We introduced an important programming method called the *loop*.
+In this exercise, we practice using loops 
+with data on the ideological positions of United States
+Supreme Court Justices.  Just like legislators, justices make voting decisions 
+that we can use to estimate their ideological positions.  This exercise
+  is based in part on Andrew Martin and Kevin Quinn. (2002). 'Dynamic
+  Ideal Point Estimation via Markov Chain Monte Carlo for the
+  U.S. Supreme Court, 1953-1999.' *Political Analysis*, 10:2, pp.134-154.
+  
+The file `justices.csv` contains the following variables:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `term`               Supreme Court term (a year)
+ 
+ `justice`            Justice's name 
+ 
+ `idealpt`            Justice's estimated ideal point in that term
+ 
+ `pparty`             Political party of the president in that term
+ 
+ `pres`               President's name
+--------------------------------------------------------------------------------
+
+The ideal points of the justices are negative to indicate liberal 
+preferences and positive to indicate conservative preferences. 
+
+## Question 1
+
+We wish to know the median ideal point for the Court during each
+  term included in the dataset. First, calculate the median ideal point
+  for each term of the Court. Next, generate a plot
+  with term on the horizontal axis and ideal point on the vertical axis. 
+  Include a dashed horizontal line at zero to indicate a "neutral"
+  ideal point. Be sure to include informative axis labels
+  and a plot title.
+
+## Answer 1
+
+```{r}
+justices <- read.csv("data/justices.csv", stringsAsFactors = FALSE)
+median_ip <- tapply(justices$idealpt, justices$term, median)
+```
+
+```{r}
+terms <- unique(justices$term)
+plot(terms, median_ip, xlab = "US Supreme Court Term", 
+     ylab = "Median Ideal Point", type = "b")
+abline(h = 0, col = "blue", lty = "dashed")
+text(1995, 0, "Neutral Ideal Point", pos = 1)
+```
+
+## Question 2
+
+Next, we wish to identify the name of the justice
+  with the median ideal point **for each term**. Which justice had the median
+  ideal point in the most (potentially
+  nonconsecutive) terms? How long did this justice serve on the Court overall?
+  What was this justice's average ideal point over his/her entire
+  tenure on the Court?
+
+## Answer 2
+
+```{r}
+median_justice <- rep(NA, length(terms))
+names(median_justice) <- terms
+for (i in 1:length(terms)){
+  med <- justices$term == terms[i] & justices$idealpt == median_ip[i]
+  median_justice[i] <- justices$justice[med]
+}
+table(median_justice) # White is median 13 times
+
+white <- subset(justices, justice == "White")
+white_tenure <- nrow(white)
+white_average_ip <- mean(white$idealpt) 
+```
+
+White served as a justice for `r white_tenure` years, of which he
+was the median justice for `r table(median_justice)["White"]` years
+- the most ever in the postwar period. His mean ideal point was
+`r round(white_average_ip, 2)`, indicating a
+moderate-conservative leaning.
+
+## Question 3
+
+We now turn to the relationship between Supreme Court
+  ideology and the president. Specifically, we want to see how
+  the ideology of the Supreme Court changes over the course of each president's
+  time in office. Begin by creating two empty
+  'container' vectors: one to hold Democratic presidents, 
+  and another for Republican presidents. Label each vector with the presidents' names. 
+  
+## Answer 3
+
+```{r}
+dem_pres_names <- unique(justices$pres[justices$pparty == "D"])
+dem_pres_shift <- rep(NA, length(dem_pres_names))
+names(dem_pres_shift) <- dem_pres_names
+
+rep_pres_names <- unique(justices$pres[justices$pparty == "R"])
+rep_pres_shift <- rep(NA, length(rep_pres_names))
+names(rep_pres_shift) <- rep_pres_names
+```
+
+## Question 4
+
+Next, for each Democratic president, calculate the shift in Supreme
+  Court ideology by subtracting the Court's median ideal point in the 
+  president's first term from its median ideal point in the president's last
+  term. Use a loop to store these values in your Democratic container vector. 
+  Repeat the same process for Republican presidents. 
+
+## Answer 4
+
+```{r}
+## Democrats
+for (pres_name in dem_pres_names) {
+  pres <- subset(justices, pres == pres_name)
+  med_ip <- tapply(pres$idealpt, pres$term, median)
+  dem_pres_shift[pres_name] <- med_ip[length(med_ip)] - med_ip[1]
+}
+
+for (pres_name in rep_pres_names) {
+  pres <- subset(justices, pres == pres_name)
+  med_ip <- tapply(pres$idealpt, pres$term, median)
+  rep_pres_shift[pres_name] <- med_ip[length(med_ip)] - med_ip[1]
+}
+```
+
+## Question 5
+
+What was the mean and standard deviation of the Supreme Court
+  ideology shifts you just calculated when looking only at the 
+  Democratic presidencies? What about the Republican presidencies?
+  Which Republican president's tenure had the largest conservative 
+  (positive) shift on the Court? Which Democratic president's tenure
+  had the largest liberal (negative) shift? 
+
+## Answer 5
+
+```{r}
+mean(dem_pres_shift)
+sd(dem_pres_shift)
+
+mean(rep_pres_shift)
+sd(rep_pres_shift)
+
+dem_pres_shift[dem_pres_shift == min(dem_pres_shift)]
+rep_pres_shift[rep_pres_shift == max(rep_pres_shift)]
+```
+
+## Question 6
+
+Create a plot that shows the median Supreme Court ideal point
+  over time.  Then, add lines for the ideal points of each unique justice
+  to the same plot. The color of each line should be red if the 
+  justice was appointed by a Republican and blue if he or she was appointed
+  by a Democrat. (You can assume that when a Justice first appears in the 
+  data, they were appointed by the president sitting during that term.)
+  Label each line with the justice's last name.  Briefly comment on the
+  resulting plot.
+
+## Answer 6
+
+```{r}
+justice_names <- unique(justices$justice)
+
+plot(terms, median_ip,
+     type = "l", xlim = c(1948, 2015), ylim = c(-7, 7), 
+     xlab = "Year", ylab = "Ideology", lwd = 4, col='grey',
+     main = "Supreme Court Justice Ideological Movement")
+
+abline(h = 0, lty = "dotted", col = "grey")
+
+for (name in justice_names) {
+    just <- subset(justices, justices$justice == name)
+    partycol <- ifelse(just$pparty[1] == "R", "red", "blue")
+    lines(just$term, just$idealpt, col = partycol)
+    last_term <- nrow(just)
+    text(just$term[last_term], just$idealpt[last_term],
+         label = name, pos = 4)
+}
+
+```
+
+In general, we find that most Supreme Court justices shift toward more
+liberal ideologies. It is also worth noting that while ideologies of
+Supreme court justices in the mid-twentieth century were relatively
+similar, we find a much larger range of ideology in recent years. This
+is particularly interesting since in 2010, most Supreme Court justices
+were nominees of Republican Presidents.

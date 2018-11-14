@@ -1,0 +1,239 @@
+---
+title: "Diverse Mechanisms of Migration"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Scholars across disciplines have identified several mechanisms that cause people to migrate. Some propose an "income maximizer" hypothesis and argue that individuals migrate because they are drawn to higher wages in receiving countries. Others argue that it is risk and uncertainty in the sending countries--such as low-wages and lack of market opportunities-- that is driving migration patterns. They offer a "risk diversifier" hypothesis. Others still hypothesize that growing ties among individuals in receiving and sending countries fosters immigration, and advocate for analyses that focus on "network migrants." In this exercise, rather than examining them as competing hypotheses, we examine these theories together and test whether each represents the profile of a different stream of migrants from Mexico to the U.S. in recent decades. Using cluster analysis, we attempt to discover the "configurations of various attributes that characterize different migrant types."  This exercise is based on the following article: 
+
+Garip, Filiz. 2012. "[Discovering Diverse Mechanisms of Migration: The Mexico–US Stream 1970–2000](https://dx.doi.org/10.1111/j.1728-4457.2012.00510.x)." *Population and Development Review*, Vol. 38, No. 3, pp. 393-433.
+
+The data come from the **Mexican Migration Project**, a survey of Mexican migrants from 124 communities located in major migrant-sending areas in 21 Mexican states. Each  community  was  surveyed  once between 1987 and 2008, during December and January, when migrants to the U.S. are mostly likely to visit their families in Mexico. In each community, individuals (or informants for absent individuals) from about 200 randomly selected households were asked to provide demographic and economic information and to state the time of their first and their most recent trip to the United States. 
+
+The data set is the file `migration.csv`. Variables in this dataset can be broken down into three categories:
+
+**INDIVIDIUAL LEVEL VARIABLES**
+
+-------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- ---------------------------------------------
+ `year`                           Year of respondent's first trip to the U.S.
+ 
+ `age`                            Age of respondent
+ 
+ `male`                           1 if respondent is male, 0 if respondent is female
+ 
+ `educ`                           Years of education: secondary school in Mexico is 
+                                  from years 7 to 12
+-------------------------------------------------------------------------------
+ 
+**HOUSEHOLD LEVEL VARIABLES**
+
+-------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- ---------------------------------------------
+ `log_nrooms`                     Logged number of rooms across all properties 
+                                  owned by respondent's household
+                                  
+ `log_landval`                    Logged value of all land owned by respondent's 
+                                  household (U.S. dollars)
+                                  
+ `n_business`                     Number of businesses owned by respondent
+ 
+ `prop_hhmig`                     Proportion of respondent's household who 
+                                  are also U.S. migrants
+------------------------------------------------------------------------------- 
+**COMMUNITY LEVEL VARIABLES**
+
+-------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- ----------------------------------------------------------
+ `prop_cmig`                      Proportion of respondent's community who are also U.S. 
+                                  migrants
+ 
+ `log_npop`                       Logged size of respondent's community.
+ 
+ `prop_self`                      Proportion of respondent's community who are self-employed
+ 
+ `prop_agri`                      Proportion of respondent's community involved in agriculture
+ 
+ `prop_lessminwage`               Proportion of respondent's community who earn less than 
+                                  the U.S. minimum wage
+-------------------------------------------------------------------------------
+
+## Question 1
+
+Examine the mean values for the individual level, household level, and community level characteristics in the dataset. Briefly interpret your answers.
+
+## Answer 1
+
+```{r}
+migration <- read.csv("data/migration.csv")
+## individual level attributes
+desc.ind <- colMeans(migration[, c("year", "age", "educ", "male")], na.rm = TRUE) 
+desc.ind
+## household level attributes
+desc.hh <- colMeans(migration[c("log_nrooms", "log_landval", "n_business", "prop_hhmig")], 
+                    na.rm = TRUE)
+desc.hh
+## community level attributes
+desc.commun <- colMeans(migration[,c("prop_cmig", "prop_self", "prop_agri", "prop_lessminwage", 
+                                     "log_npop")], na.rm = TRUE)
+desc.commun
+```
+ 
+The average migrant first migrated in 1986, is male, 24 years old, has attended the first year of secondary education (secondary school encompasses 7-12 grade in Mexico), owns land and property but no businesses. He belongs to households where roughly a third of members are also migrants to the U.S., and lives in a small community (with `r round(exp(desc.commun[5]), 0)` members), where a small but meaningful proportion of members are also U.S. migrants (`r round(desc.commun[1], 2) * 100` percent). Roughly a third of the members of his communities are self-employed, and a  third are involved in agriculture. Less than 15 percent (`r round(desc.commun[4], 2) * 100` percent) of members in his communities earn less than U.S. minimum wage. 
+
+ 
+## Question 2
+
+Use scatterplots to investigate the relationship between `prop_self` and `prop_agri`, as well as the relationship between `prop_self` and `log_npop`. Briefly interpret these scatter plots and what they imply about self-employed workers. Do these relationships appear to be independent? What does knowing that a migrant is self-employed tell us about them?  Then calcuate the correlation for all possible interactions of the four community level variables: `prop_self`, `prop_agri`, `prop_lessminwage`, and `log_npop`. Use these correlations to help with your interpretation of the scatter plots. Does adding the `prop_lessminwage` variable add anything to your interpretation?
+
+## Answer 2
+
+```{r}
+## relationship among community level variables
+plot(migration$prop_self, migration$prop_agri, ylim = c(0, 1),
+     xlab = "Proportion Self-Employed", ylab = "Proportion in Agriculture")
+plot(migration$prop_self, migration$log_npop, ylim = c(6.25,16),
+     xlab = "Proportion Self-Employed", ylab = "ln(Size Community)")
+cor <- cor(migration[,c("prop_self", "prop_agri", "prop_lessminwage", "log_npop")], 
+           use = "complete.obs")
+cor
+```
+
+The scatter plots between community proportion of self-employed, and community proportion in agriculture, show a positive relationship. Suggesting that communities with more of their members engaged in agriculture are more likely to also have a high proportion of self-employment. The relationship between size of community and self-employment, on the other hand, is negative. Since `prop_self`, `prop_agri`, and `log_npop` show some correlation, if we know a migrant is self-employed, we know they are also more likely to come from an agricultural community and more likely to come from a smaller community.
+
+Our correlation matrix supports this relationship among the `prop_self`, `prop_agri`, and `log_npop` variables. Communities with a high proportion of self-employed, are also slightly less likely to have members in their communities earning less than minimum wage (a correlation of `r round(cor[1, 3], 2)`).
+
+
+## Question 3
+
+We'll focus on the variables: `year`, `educ`, `log_nrooms`, `log_landval`, `n_business`, `prop_hhmig`, `prop_cmig`, `log_npop`, `prop_self`, `prop_agri`, and `prop_lessminwage`. Remove observations with missing values. Then, subset your dataset to all of your variables **except** `year`, and use the `scale()` function to standardize the variables in your subsetted dataset so that they are comparable. Compare the means and standard deviations before and after scaling. Standardizing substracts the mean of a variable from each observation and divides by the standard deviation.  
+
+## Answer 3
+
+```{r}
+mig.sub <- subset(migration, select = c(year, educ, log_nrooms, log_landval, n_business, 
+                                        prop_hhmig, prop_cmig, log_npop, prop_self,
+                                        prop_agri, prop_lessminwage))
+## Before scaling
+colMeans(mig.sub[, 2:11]) # or alternatively: apply(mig.sub, 2, mean)
+apply(mig.sub[, 2:11], 2, sd)
+
+mig.sub <- na.omit(mig.sub)
+migScale <- scale(mig.sub[, 2:11])
+
+## After scaling
+colMeans(migScale)
+apply(migScale, 2, sd)
+```
+
+After scaling, each variable has a mean of approximately 0, and a standard deviation of 1. They are now comparable and lie on the same scale.
+
+
+## Question 4
+
+Fit the k-means clustering algorithm with *three* clusters, using the scaled variables from the data set with no missing values. Insert the code `set.seed(2016)` right before your cluster analysis so that you can compare your results from the kmeans clustering to exercise solutions later.  How many observations are assigned to each cluster? Each cluster has a center. What do the centers of these clusters represent? Interpret the type of migrant described by cluster 1. To help witih interpretability, you can also calculate the mean value of the variables for each cluster, using their original scale.  Repeat the cluster analysis. This time with *four* centers. How are the two results different? Is there one you prefer? 
+
+
+## Answer 4
+
+```{r}
+## 
+set.seed(2016)
+cluster3 <- kmeans(migScale, centers = 3)
+
+## how many observations in each cluster
+table(cluster3$cluster)
+
+## this gives standardized answer:
+cluster3$centers
+
+## To see the mean values for each cluster in their original scales:
+c1 <- mig.sub[cluster3$cluster == 1, 2:11]
+c1.val <- colMeans(c1)
+c1.val
+
+c2 <- mig.sub[cluster3$cluster == 2, 2:11]
+c2.val <- colMeans(c2)
+c2.val
+
+c3 <- mig.sub[cluster3$cluster == 3, 2:11]
+c3.val <- colMeans(c3)
+c3.val
+```
+
+Each cluster characterizes a type of migrant, and each centroid represents the combination of characteristics of the "average" or most representative migrant for that cluster. Each migrant in our dataset is compared to this center, and assigned to a cluster based on how close they are to the ideal type (center). 
+
+The type of migrant described by cluster 1 has a moderate amount of education (`r round(c1.val[1], 2)` years). Although this is more education than migrants in cluster 2 it is less than those in cluster 3. They own more property, land, and businesses than any of the other groups. They are also much more likely to have a US migrant as a member of their household or their community. `r round(c1.val[5], 2) * 100` percent of their household members are migrants, and `r round(c1.val[6], 2) * 100` percent of their communities. In addition, they live in slightly smaller communities than the other clusters, with greater proportions of self-employment, although not greater proportions in agriculture, than any of the other clusters. Finally, they come from communities with smaller proportions of low wage earners than the other clusters.
+
+```{r}
+cluster4 <- kmeans(migScale, centers = 4)
+
+## how many observations in each cluster
+table(cluster4$cluster)
+
+## this gives standardized answer:
+round(cluster4$centers,2)
+
+## To see the mean values for each cluster in their original scales:
+d1 <- mig.sub[cluster4$cluster == 1, 2:11]
+d1.val <- colMeans(d1, na.rm = TRUE)
+d1.val
+
+d2 <- mig.sub[cluster4$cluster == 2, 2:11]
+d2.val <- colMeans(d2, na.rm = TRUE)
+d2.val
+
+d3 <- mig.sub[cluster4$cluster == 3, 2:11]
+d3.val <- colMeans(d3, na.rm = TRUE)
+d3.val
+
+d4 <- mig.sub[cluster4$cluster == 4, 2:11]
+d4.val <- colMeans(d4, na.rm = TRUE)
+d4.val 
+```
+
+The results from the two models differ. The first model with three clusters distinguishes among: 1) migrants with a high level of financial background, and connectivity to other migrants (high proportion of migrants in their households or communities). These characteristics refer to the migrants in cluster one that score the highest for the (`log_nrooms`, `log_landval` , `n_business` , `prop_hhmig` and `prop_cmig` variables). 2) Migrants with a high level of education and living in densely populated areas. These are the migrants in cluster 3 who sore the highest for the (`educ` and `log_npop` variables). And 3) migrants with the lowest levels of education, from agricultural communities where a large proportion of the community earns less than minimum wage. These migrants scored the lowest for the `educ` variable, and the highest for the `prop_agri` and `prop_lessminwage` variables.
+
+The fourth model still distinguishes among these groups, but separates migrants with a high level of household wealth from migrants who have a large proportion of migrants in their networks (the `prop_hhmig` and `prop_cmig` variables). The fourth cluster, which scores the highest for the household wealth variables (`log_nrooms`, `log_landval` , and `n_business`), no longer scores the highest for *both* the `prop_hhmig` and `prop_cmig` variables as well. We might prefer the fourth cluster because we don't lose the distinctions from the third cluster, but gain an additional dimension along which to compare migrants in our sample.  
+
+
+## Question 5
+
+Do these different clusters represent different temporal trends in migration from Mexico to the US? Use a time-series plot to graph the proportions of migrants in each of the four clusters from Question 4 over time (variable `year`). Briefly describe the major trends you discover.
+
+## Answer 5
+
+```{r}
+mig.sub$cl1 <- cluster4$cluster == 1
+mig.sub$cl2 <- cluster4$cluster == 2
+mig.sub$cl3 <- cluster4$cluster == 3
+mig.sub$cl4 <- cluster4$cluster == 4
+
+pct_cluster1 <- tapply(mig.sub$cl1, mig.sub$year, mean, na.rm=TRUE)
+pct_cluster2 <- tapply(mig.sub$cl2, mig.sub$year, mean, na.rm=TRUE)
+pct_cluster3 <- tapply(mig.sub$cl3, mig.sub$year, mean, na.rm=TRUE)
+pct_cluster4 <- tapply(mig.sub$cl4, mig.sub$year, mean, na.rm=TRUE)
+
+plot(x = names(pct_cluster1), y = pct_cluster1, type = "l", col = "black",
+     ylab = "% Migrants in Cluster", xlab = "Migration Year", ylim = c(0, 0.95), 
+     main = "Percent of Migrants in Each Cluster, 1960s-2000s")
+points(x = names(pct_cluster2), y = pct_cluster2, type = "l", col = "red")
+points(x = names(pct_cluster3), y = pct_cluster3, type = "l", col = "green")
+points(x = names(pct_cluster4), y = pct_cluster4, type = "l", col = "blue")
+
+text(x = 1993, y = pct_cluster1[names(pct_cluster1) == 1993],
+     labels = "cluster 1", col = "black", cex = 0.75, pos = 3)
+text(x = 1973, y = pct_cluster2[names(pct_cluster2) == 1973], 
+     labels = "cluster 2", col = "red", cex = 0.75, pos = 3)
+text(x = 1974, y = pct_cluster3[names(pct_cluster3) == 1974],
+     labels = "cluster 3", col = "green", cex = 0.75, pos = 3)
+text(x = 1995, y = pct_cluster3[names(pct_cluster3) == 1995], 
+     labels = "cluster 4", col = "blue", cex = 0.75, pos = 3)
+
+```
+
+The biggest difference over time relates to clusters 1 and 2. While cluster 2 was most prevalent from the mid 1960s to 1980 and cluster 1 the least prevalent. Around 1980, there is a complete reversal and cluster 1 dominates while cluster 2 becomes the least common migrant type. Looking at characteristics of these two clusters, we see that cluster 1 migrants, most prevalent *after* 1980 are more educated (by `r round(d1.val[1] - d2.val[1],2)` years), have higher proportions of migrants in their households (by `r round(d1.val[5] - d2.val[5],2)` percent points) and communities (by `r round(d1.val[6] - d2.val[6],2)` percent points), and come from less agricultural communities with a lower proportion of low wage workers than those from cluster 2. We therefore find evidence that the "network migrants" hypothesis is most accurate for the later period, while in the earlier years it seems that low wages and lack of opportunities in the local market is primarily driving migration patterns, consistent with the "risk diversifier" hypothesis. 

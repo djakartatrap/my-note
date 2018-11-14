@@ -1,0 +1,437 @@
+---
+title: "Election and Conditional Cash Transfer Program in Mexico"
+output:
+  pdf_document: default
+  html_document: default
+date: "5 August 2015"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(error=FALSE,comment='')
+```
+
+In this exercise, we analyze the data from a study that seeks to
+estimate the electoral impact of 'Progresa', Mexico's
+*conditional cash transfer program* (CCT program). This
+  exercise is based on the following article: Ana de la O. (2013).
+  'Do Conditional Cash Transfers Affect Voting Behavior? Evidence
+  from a Randomized Experiment in Mexico.'  *American Journal of
+    Political Science*, 57:1, pp.1-14. and Kosuke Imai,
+  Gary King, and Carlos Velasco. (2015). 'Do Nonpartisan Programmatic
+  Policies Have Partisan Electoral Effects? Evidence from Two Large
+  Scale Randomized Experiments.' Working Paper.
+  
+The original study
+relied on a randomized evaluation of the CCT program in which eligible
+villages were randomly assigned to receive the program either 21
+(Early *Progresa*) or 6 months (Late *Progresa*) before
+the 2000 Mexican presidential election. The author of the original
+study hypothesized that the CCT program would mobilize voters, leading
+to an increase in turnout and support for the incumbent party (PRI in
+this case).  The analysis was based on a sample of precincts that
+contain at most one participating village in the evaluation.
+
+The data we analyze are available as the CSV file
+`progresa.csv`. The names
+and descriptions of variables in the data set are:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `treatment`          Whether an electoral precinct contains a village where 
+                      households received Early *Progresa*
+                      
+ `pri2000s`           PRI votes in the 2000 election as a share of precinct 
+                      population above 18
+ 
+ `pri2000v`           Official PRI vote share in the 2000 election
+ 
+ `t2000`              Turnout in the 2000 election as a share of precinct 
+                      population above 18
+                      
+ `t2000r`             Official turnout in the 2000 election
+ 
+ `pri1994`            Total PRI votes in the 1994 presidential election
+ 
+ `pan1994`            Total PAN votes in the 1994 presidential election 
+ 
+ `prd1994`            Total PRD votes in the 1994 presidential election
+ 
+ `pri1994s`           Total PRI votes in the 1994 election as a share of 
+                      precinct population above 18
+                      
+ `pan1994s`           Total PAN votes in the 1994 election as a share of 
+                      precinct population above 18
+                      
+ `prd1994s`           Total PRD votes in the 1994 election as a share of 
+                      precinct population above 18
+                      
+ `pri1994v`           Official PRI vote share in the 1994 election
+ 
+ `pan1994v`           Official PAN vote share in the 1994 election
+ 
+ `prd1994v`           Official PRD vote share in the 1994 election
+ 
+ `t1994`              Turnout in the 1994 election as a share of precinct 
+                      population above 18
+                      
+ `t1994r`             Official turnout in the 1994 election
+ 
+ `votos1994`          Total votes cast in the 1994 presidential election 
+ 
+ `avgpoverty`         Precinct Avg of Village Poverty Index
+ 
+ `pobtot1994`         Total Population in the precinct
+ 
+ `villages`           Number of villages in the precinct
+---------------------------------------------------------------------------------
+
+Each observation in the
+data represents a precinct, and for each precinct the file contains
+information about its treatment status, the outcomes of interest,
+socioeconomic indicators, and other precinct characteristics.
+
+## Question 1
+
+Estimate the impact of the CCT program on turnout and support
+  for the incumbent party (PRI or Partido Revolucionario
+  Institucional) by comparing the average electoral outcomes in the
+  'treated' (Early *Progresa*) precincts versus the ones
+  observed in 'control' (Late *Progresa*) precincts. Next,
+  estimate these effects by regressing the outcome variable on the
+  treatment variable. Interpret and compare the estimates under these
+  approaches.  Here, following the original analysis, use the turnout
+  and support rates as shares of the voting eligible population
+  (`t2000` and `pri2000s`, respectively).  Do the results
+  support the hypothesis?  Provide a brief interpretation.
+
+## Answer 1
+
+```{r}
+cct <- read.csv("data/progresa.csv")
+## effect on turnout under standard difference-in-means
+itt.turn <- mean(cct$t2000[cct$treatment == 1]) - 
+    mean(cct$t2000[cct$treatment == 0])
+itt.turn
+## effect on turnout under linear regression
+ols.turn <- lm(t2000 ~ treatment, data = cct)
+ols.turn
+## effect on PRI support under standard difference-in-means
+itt.pri <- mean(cct$pri2000s[cct$treatment == 1]) - 
+    mean(cct$pri2000s[cct$treatment == 0])
+itt.pri
+## effect on PRI support under linear regression
+ols.pri <- lm(pri2000s ~ treatment, data = cct)
+ols.pri
+```
+
+We find that the estimated average effect of the CCT on turnout and
+support for the incumbent party are `r round(itt.turn, 2)` and
+`r round(itt.pri, 2)` percentage points, respectively.  As we saw
+earlier in the chapter, these estimates are identical regardless of
+whether one uses the difference-in-means or linear regression
+estimators.  Each estimate should be interpreted as the impact of *Progresa*'s availability rather than the receipt of the program
+itself.  The results are consistent with the hypothesis, suggesting
+that on average, the availability of the CCT program increased turnout
+and support for the incumbent party by about 4 percentage points.
+
+## Question 2
+
+In the original analysis, the authors fit a linear regression
+  model that includes, as predictors a set of pre-treatment covariates
+  as well as the treatment variable.  Here, we fit a similar model for
+  each outcome that includes the average poverty level in a precinct
+  (`avgpoverty`), the total precinct population in 1994
+  (`pobtot1994`), the total number of voters who turned out in
+  the previous election (`votos1994`), and the total number of
+  votes cast for each of the three main competing parties in the
+  previous election (`pri1994` for PRI, `pan1994` for
+  Partido Acción Nacional or PAN, and `prd1994` for Partido
+  de la Revolución Democrática or PRD).  Use the same outcome
+  variables as in the original analysis that are based on the shares
+  of the voting age population.  According to this model, what are the
+  estimated average effects of the program's availability on turnout
+  and support for the incumbent party?  Are these results different
+  from what you obtained in the previous question?
+  
+## Answer 2
+
+```{r}
+## effect on turnout under original analysis
+org.turn <- 
+    lm(t2000 ~ treatment + avgpoverty + pobtot1994 + 
+           votos1994 + pri1994 + pan1994 + prd1994, data = cct)
+org.turn
+## effect on PRI support under original analysis
+org.pri <- 
+    lm(pri2000s ~ treatment + avgpoverty + pobtot1994 +
+           votos1994 + pri1994 + pan1994 + prd1994, data = cct)
+org.pri
+```
+
+The intention-to-treat estimates of *Progresa* on turnout and
+support for the incumbent party under the original regression analysis
+are now `r round(coef(org.turn)[2], 2)` and
+`r round(coef(org.pri)[2], 2)` percentage points, respectively.
+The differences between the original regression-based estimates and
+these difference-in-means estimates are `r round(coef(org.turn)[2]
+  - itt.turn, digits = 2)` and `r round(coef(org.pri)[2] -
+  itt.pri, digits = 2)` percentage points for turnout and PRI support,
+respectively.  These estimates are quite similar.
+
+## Question 3
+
+Next, we consider an alternative, and more natural, model
+  specification.  We will use the original outcome variables as in the
+  previous question.  However, our model should include the previous
+  election outcome variables measured as shares of the voting age
+  population (as done for the outcome variables `t1994`,
+  `pri1994s`, `pan1994s`, and `prd1994s`) instead of
+  those measured in counts. In addition, we apply the natural
+  logarithm transformation to the precinct population variable when
+  including it as a predictor.  As in the original model, our model
+  includes the average poverty index as an additional predictor.  Are
+  the results based on these new model specifications different from
+  what we obtained in the previous question?  If the results are
+  different, which model fits the data better?
+  
+## Answer 3
+
+```{r}
+## effect on Turnout (previous outcome in ratio; log population)
+turn.ratio <- 
+    lm(t2000 ~ treatment + avgpoverty + I(log(pobtot1994)) + 
+           t1994 + pri1994s + pan1994s + prd1994s, data = cct)
+turn.ratio
+## effect on PRI support (previous outcome in ratio; log population)
+pri.ratio <- 
+    lm(pri2000s ~ treatment + avgpoverty + I(log(pobtot1994)) + 
+           t1994 + pri1994s + pan1994s + prd1994s,
+       data = cct)
+pri.ratio
+```
+
+When we adjust for the previous outcomes in ratios instead of counts
+and log-transform the precinct population, the estimates for the ITT
+effect on turnout and incumbent support are
+`r round(coef(turn.ratio)[2], 2)` and
+`r round(coef(pri.ratio)[2], 2)` percentage points,
+respectively. This result is a significant change relative to the
+findings of the original analysis and suggests that program
+availability has little effect on election outcomes.
+
+We examine the model fit under each specification using the adjusted
+$R^2$. We use the `adjR2` function created earlier in the
+chapter.
+
+```{r}
+## adjusted Rsquare
+adjR2 <- function(fit) {
+    resid <- resid(fit)
+    y <- fitted(fit) + resid
+    n <- length(y)
+    TSS.adj <- sum((y - mean(y))^2) / (n - 1)
+    SSR.adj <- sum(resid^2) / (n - length(coef(fit)))
+    R2.adj <- 1 - SSR.adj / TSS.adj
+    return(R2.adj)
+}
+## original turnout model
+adjR2(org.turn)
+## turnout model with previous turnout in ratio
+adjR2(turn.ratio)
+## original PRI support model 
+adjR2(org.pri)
+## PRI support model with previous support for parties in ratios
+adjR2(pri.ratio)
+```
+
+The model fit under the original specification is quite poor for both
+turnout and PRI support (`r round(adjR2(org.turn), 2)` and
+`r round(adjR2(org.pri), 2)`, respectively). When instead we
+adjust for the previous outcomes in ratios and log-transform the
+precinct population variable, the fit of each model improves rather
+dramatically (to `r round(adjR2(turn.ratio), 2)` and
+`r round(adjR2(pri.ratio), 2)`, respectively).  The poor model fit
+in the original analysis may be explained by the fact that the counts
+of the previous outcomes are noisy predictors.  It is also possible
+that the linearity assumption may be less appropriate in the case of
+counts as compared to ratios if counts contain large outliers.
+
+
+## Question 4
+
+We examine the balance of some pre-treatment variables used in
+  the previous analyses.  Using boxplots, compare the distributions of
+  the precinct population (on the original scale), average poverty
+  index, previous turnout rate (as a share of the voting age
+  population), and previous PRI support rate (as a share of the voting
+  age population) between the treatment and control groups.  Comment
+  on the patterns you observe.
+  
+## Answer 4
+
+We begin by creating a boxplot for each of the two variables,
+comparing their distributions between the treatment and control
+groups.  
+
+```{r}
+par(cex = 1.5)
+boxplot(cct$avgpoverty ~ cct$treatment, xlab = "Treatment status",
+        ylab = "Poverty Index", main = "Poverty")
+boxplot(cct$pobtot1994 / 1000 ~ cct$treatment, 
+        xlab = "Treatment status", ylab = "Population (thousands)", 
+        main = "Population")
+boxplot(cct$t1994 ~ cct$treatment, ylim = c(0, 300),
+        xlab = "Treatment status", ylab = "Turnout Rate (percent)", 
+        main = "Previous Turnout") 
+boxplot(cct$pri1994s ~ cct$treatment, ylim = c(0, 300),
+        xlab = "Treatment status", ylab = "PRI Support Rate (percent)", 
+        main = "Previous PRI Support")
+```
+
+The boxplots show that while the average poverty index is balanced
+across the two groups, the population variable includes two outliers.
+Both of these observations belong to the treatment group.  Similarly,
+the previous turnout rate and previous PRI support rate variables are
+imbalanced.  For both variables, the treatment group has a few
+outliers.  In theory, such an imbalance can result by chance even when
+the treatment assignment is properly randomized.  However, it could
+also arise from the failure of randomization.  In any event, this
+imbalance may explain why the estimated average treatment effect based
+on this specific sample is sensitive to the model specification.
+
+Furthermore, we observe that several precincts have turnout rates
+greater than 100 percent.  Similarly, the PRI support rate for some
+precincts exceeds 100 percent.  There appear to be significant
+undercounts of eligible voters, resulting in the measurement error of
+the turnout rate and PRI support rate variables.  To see if this
+measurement error problem exists in the outcome variables, we
+summarize the distribution of the turnout rate and PRI support rate
+variables.  The boxplots show that the same exact measurement error
+problem exists in the outcome variables where several observations,
+mostly in the treatment group, exceed 100 percent.
+
+
+```{r}
+par(cex = 1.5)
+boxplot(cct$t2000 ~ cct$treatment, ylim = c(0, 300),
+        xlab = "Treatment status", ylab = "Turnout Rate (percent)", 
+        main = "Turnout") 
+boxplot(cct$pri2000s ~ cct$treatment, ylim = c(0, 300),
+        xlab = "Treatment status", ylab = "PRI Support Rate (percent)", 
+        main = "PRI Support") 
+```
+
+
+## Question 5
+
+We next use the official turnout rate `t2000r` (as a share
+  of the registered voters) as the outcome variable rather than the
+  turnout rate used in the original analysis (as a share of the voting
+  age population). Similarly, we use the official PRI's vote share
+  `pri2000v` (as a share of all votes cast) rather than the
+  PRI's support rate (as a share of the voting age population).
+  Compute the average treatment effect of the CCT program using a
+  linear regression with the average poverty index, the
+  log-transformed precinct population, and the previous official
+  election outcome variables (`t1994r` for the previous turnout;
+  `pri1994v`, `pan1994v`, and `prd1994v` for the
+  previous PRI, PAN, and PRD vote shares).  Briefly interpret the
+  results.
+  
+## Answer 5
+
+```{r}
+## effects on turnout
+off.turn <- 
+    lm(t2000r ~ treatment + avgpoverty + I(log(pobtot1994)) + 
+           t1994r + pri1994v + pan1994v + prd1994v, data = cct)
+off.turn
+## effects on PRI support
+off.pri <- 
+    lm(pri2000v ~ treatment + avgpoverty + I(log(pobtot1994)) + 
+           t1994r + pri1994v + pan1994v + prd1994v, data = cct)
+off.pri
+```
+
+The intention-to-treat estimates of *Progresa* on official turnout
+and support for the incumbent party are
+`r round(coef(off.turn)[2], 2)` and `r round(coef(off.pri)[2],
+  2)`.  These estimates are rather small and do not provide strong
+support for the hypothesis that the CCT program increases turnout and
+support for the incumbent party.
+
+## Question 6
+
+So far we have focused on estimating the average treatment
+  effects of the CCT program. However, these effects may vary from one
+  precinct to another. One important dimension to consider is poverty.
+  We may hypothesize that since individuals in precincts with higher
+  levels of poverty are more receptive to the cash transfers, they are
+  more likely to turn out in the election and support the incumbent
+  party when receiving the CCT program.  Assess this possibility by
+  examining how the average treatment effect of the policy varies by
+  different levels of poverty for precincts. To do so, fit a linear
+  regression with the following predictors: the treatment variable,
+  the log transformed precinct population, the average poverty index
+  and its square, the interaction between the treatment and poverty
+  index, and the interaction between the treatment and squared poverty
+  index.  Estimate the average effects for unique observed values and
+  plot them as a function of the average poverty level.  Comment on
+  the resulting plot.
+  
+
+## Answer 6
+
+```{r}
+par(cex = 1.5)
+## unique values, sorted
+poverty.unique <- sort(unique(cct$avgpoverty))
+## effect on turnout with non-linear interactions 
+turn.by.poverty <- 
+    lm(t2000r ~ treatment + I(log(pobtot1994)) + avgpoverty + 
+           I(avgpoverty^2) + avgpoverty:treatment + 
+               I(avgpoverty^2):treatment, data = cct)
+turn.by.poverty
+## predicting turnout under treatment condition
+turn.cct.hatT <- 
+    predict(turn.by.poverty, newdata = data.frame(treatment = 1, 
+                                 pobtot1994 = mean(cct$pobtot1994), 
+                                 avgpoverty = poverty.unique))
+## predicting turnout under control condition
+turn.cct.hatC <- predict(turn.by.poverty, 
+                         newdata = data.frame(treatment = 0, 
+                             pobtot1994 = mean(cct$pobtot1994), 
+                             avgpoverty = poverty.unique))
+## effect on turnout with non-linear interactions 
+pri.by.poverty <- 
+    lm(pri2000v ~ treatment + I(log(pobtot1994)) + avgpoverty + 
+           I(avgpoverty^2) + avgpoverty:treatment + 
+               I(avgpoverty^2):treatment, data = cct)
+pri.by.poverty
+## predicted PRI support under treatment condition
+pri.cct.hatT <- 
+    predict(pri.by.poverty, newdata = data.frame(treatment = 1, 
+                                pobtot1994 = mean(cct$pobtot1994), 
+                                avgpoverty = poverty.unique))
+## predicting PRI support under control condition
+pri.cct.hatC <-  
+    predict(pri.by.poverty, newdata = data.frame(treatment = 0, 
+                                pobtot1994 = mean(cct$pobtot1994), 
+                                avgpoverty = poverty.unique))
+## plot average effect as a function of average poverty index
+plot(poverty.unique, turn.cct.hatT - turn.cct.hatC, type = "l", 
+     ylim = c(-5, 18), xlab = "Average Poverty Index",
+     ylab = "Percentage Points")
+lines(poverty.unique, pri.cct.hatT - pri.cct.hatC, lty = "dashed")
+text(4, 6, "Average effect on PRI support")
+text(4, -3, "Average effect on turnout")
+```
+
+The average effect of *Progresa*'s availability on incumbent
+support appears heterogeneous. Interestingly, the estimated effect is
+greater among precincts with lower values of poverty level.  In
+contrast, we find little non-linearity in the estimated effect on
+turnout.  Across the lower range of precinct poverty level, the
+estimated effect is slightly negative, while across the upper range,
+the estimated effect is slightly positive.

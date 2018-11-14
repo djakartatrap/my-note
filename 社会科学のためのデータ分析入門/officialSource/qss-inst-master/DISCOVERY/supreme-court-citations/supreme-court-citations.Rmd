@@ -1,0 +1,249 @@
+---
+title: "Supreme Court Citation Network"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+The constitution of the U.S. left unclear the role and authority of the federal judiciary. The Supreme Court had gradually established its own decisional legitimacy by strengthening the norm of *stare decisis*, a legal principle that requires the court's rulings to be grounded in the preceding decisions. The justices of the Supreme Court cite relevant precedents to justify their logics. Therefore, in the development of the U.S. laws, it's important to understand which cases critically shaped the later court rulings. In this exercise, we will anlyze the relation among the Supreme Court's decisions and its changes in the American legal history.  
+
+This exercise is based on:
+
+Fowler, J. H., T. R. Johnson, J. F. Spriggs, S. Jeon, and P. J. Wahlbeck. 2006. “[Network Analysis and the Law: Measuring the Legal Importance of Precedents at the U.S. Supreme Court.](http://dx.doi.org/10.1093/pan/mpm011)” *Political Analysis* 15(3): 324–46.
+
+and 
+
+Fowler, James H., and Sangick Jeon. 2008. “[The Authority of Supreme Court Precedent.](http://dx.doi.org/10.1016/j.socnet.2007.05.001)” *Social Networks* 30(1): 16–30.
+
+The data in `judicial.csv` represents Supreme Court cases with variables 
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `caseid`	            unique numerical id given to each case
+ 
+ `usid`               US Reporter id (or numerical equivalent for early Reporters)
+ 
+ `parties`           	Names of parties to case
+ 
+ `year`               Year that the case was decided by the Supreme Court
+ 
+ `oxford`            	Does case appear on Oxford list of salient cases? (Yes = 1, No = 0)
+ 
+ `liihc`	            Does case appear on Legal Information Institute's list of important 
+                      cases? (Yes = 1, No = 0)
+--------------------------------------------------------------------------------
+
+The data in `citation.csv` contains information about citation with variables:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `citing.id`	        The `caseid` of the citing case
+ 
+ `cited.id`           The `caseid` of the cited case
+--------------------------------------------------------------------------------
+
+## Question 1
+
+The original authors used `caseid` which they arbitrarily created for convenience, but matching US Reporter ID will allow us to identify cases more easily. After you load `citation.csv`, add following four new columns to it: `citing.usid`, `cited.usid`, `citing.year`, and `cited.year`. You should match the caseid of 'citation.txt' with the caseid of 'judicial.csv'.  
+
+Hint : Use `merge` to match on `caseid`.
+
+## Answer 1
+```{r, message=FALSE, warning=FALSE}
+cite.ini <- read.csv('data/citation.csv')
+jud <- read.csv('data/judicial.csv')
+
+jud.small <- jud[ ,c("caseid", "usid", "year")]
+  
+#create citing.usid & citing.year
+temp1 <- merge(cite.ini, jud.small, by.x="citing.id", by.y="caseid", all.x=T)
+colnames(temp1) <- c("citing.id", "cited.id", "citing.usid", "citing.year")
+
+#cited.usid & cited.year
+temp2 <- merge(temp1, jud.small, by.x="cited.id", by.y="caseid", all.x=T )
+colnames(temp2) <- c("citing.id", "cited.id", "citing.usid", "citing.year",
+                   "cited.usid", "cited.year")
+#tab <- temp2[order(temp2$citing.id), ]
+cite <- temp2
+cite$cited.id <- as.factor(cite$cited.id)
+cite$citing.id <- as.factor(cite$citing.id)
+```
+
+## Question 2
+
+We first examine 'the degree distribution of a network', that is, the variation in the total number of inward and outward citations. Using a package `igraph`, calculate the inward degrees and the outward degrees of each Supreme Court case. Plot the histogram with 50 bins respectively, mark the five quantile values with vertical lines. What are the characteristics of the degree distributions? 
+
+## Answer 2
+
+```{r, message=FALSE, warning=FALSE}
+library(igraph)
+
+# Inward citation and outward citation
+total_g <- graph_from_data_frame(cite[, c("citing.id", "cited.id")], directed=T)
+total_indg  <- degree(total_g, mode = "in") 
+total_outdg <- degree(total_g, mode = "out")
+
+
+indg_dta <- data.frame(cited.id = names(total_indg), 
+                       total_indg, row.names = NULL)  # need to check
+outdg_dta <- data.frame(citing.id = names(total_outdg), 
+                        total_outdg, row.names = NULL)
+
+jud$indg <- merge(jud, indg_dta, by.x="caseid", by.y="cited.id", 
+                  all.x=T)[ ,"total_indg"]
+jud$outdg <- merge(jud, outdg_dta, by.x="caseid", by.y="citing.id", 
+                   all.x=T)[ ,"total_outdg"]
+
+jud[is.na(jud$indg)==T, "indg"]=0
+jud[is.na(jud$outdg)==T, "outdg"]=0
+
+
+hist(jud$indg, breaks=50, ylim=c(0, 25000), xlim=c(0,250), 
+     main="Distribution of inward degree", xlab="Inward degree")
+abline(v=quantile(jud$indg, na.rm=T), col="red")
+hist(jud$outdg, breaks=50, ylim=c(0, 25000), xlim=c(0,250), 
+     main="Distribution of outward degree", xlab="Outward degree")
+abline(v=quantile(jud$outdg, na.rm=T), col="red")
+
+```
+
+In our citation data, the number of nodes sums up to around 25,000, which shows that the network among the court cases is large and sparse. Large-scale networks are usually very skewed: only few cases received extremely high citations, while majority of them had little citations. Here, we can confirm that our data has 'heavy-tailed' distribution of degree. Inward degree distribution shows that, while most cases received only few citations, some important cases were widely cited. Similar pattern appears in outward degree distribution. 
+
+## Question 3
+
+In 19th Century, justices started to actively implement the norm of *stare decisis* by citing relevant precedent cases. Prior cases were considered as a guideline of legal decisions and the Court justified their power based on the consistency with the existing cases. However, U.S. legal history witnessed a noticeable deviation from this trend during the period when Earl Warren was the Chief Justice of the Supreme Court; we refer to this period as the *'Warren Court'* (1953-1969). 
+
+Plot the average inward citations and outward citations per case by year. Add two vertical lines to mark the start and the end of the Warren Court. Is there any distinctive feature during the Warren Court compared to the previous or later period? Give a brief interpretation.
+
+## Answer 3
+
+```{r, warning=F}
+indg_year_av <- tapply(jud$indg, jud$year, mean)
+outdg_year_av <- tapply(jud$outdg, jud$year, mean)
+
+plot(names(indg_year_av), indg_year_av,      
+     xlab='Year',
+     ylab="Average inward citation")
+abline(v=c(1953, 1969), col="red")
+
+
+plot(names(outdg_year_av), outdg_year_av,      
+     xlab='Year',
+     ylab="Average outward citation")
+abline(v=c(1953, 1969), col="red")
+
+# Report the mean and median of inward and outward citations 
+# during the Warren Court with the period of 1930-1952 and the 
+# period of 1970-1989.
+
+# 1930-1952
+pre_warren_avg <- apply(jud[jud$year>=1930 &jud$year<=1952, 
+                            c("indg", "outdg")], 2, mean)
+pre_warren_qt <- apply(jud[jud$year>=1930 &jud$year<=1952, 
+                           c("indg", "outdg")], 2, quantile)
+
+# Warren court
+warren_avg <- apply(jud[jud$year>=1953 &jud$year<=1969, c("indg", "outdg")], 2, mean)
+warren_qt <- apply(jud[jud$year>=1953 &jud$year<=1969, c("indg", "outdg")], 2, quantile)
+
+# 1970-1989
+post_warren_avg <- apply(jud[jud$year>=1970 &jud$year<=1989, 
+                             c("indg", "outdg")], 2, mean)
+post_warren_qt <- apply(jud[jud$year>=1970 &jud$year<=1989, 
+                            c("indg", "outdg")], 2, quantile)
+
+rbind(pre_warren_avg, warren_avg, post_warren_avg)
+pre_warren_qt
+warren_qt
+post_warren_qt
+```
+
+The mean of inward and outward citations during the pre-Warren period is respectively `r round(pre_warren_avg, 2)[1]` and `r round(pre_warren_avg, 2)[2]`. This is substantially higher than the Warren period average `r round(warren_avg, 2)[1]` and `r round(warren_avg, 2)[2]`, which confirms the deviation from stare decisis during the Warren Court period. Noticeably, under the Warren Court, mean outward citation is lower than the mean inward citation. This means that the Warren court didn't cite prior cases much, but the decisions by the Warren Court were cited a lot in the later period. In post-Warren period, mean inward degree, `r round(post_warren_avg, 2)[1]`, and mean outward degree,`r round(post_warren_avg, 2)[2]`, are substantially different. Higher average outward degree indicates that the court sticks to the stare decisis norm more seriously. Lower inward degree might be due the the fact that those cases are rather recent to be cited by others. 
+
+## Question 4
+
+Now, let's examine which cases are most influential in the U.S. legal history. We will compare inward degrees with PageRank. Compute PageRank score of the Supreme Court cases with regard to the entire network. 
+
+Identify the top 10 most important cases based on PageRank score and inward degree respectively. Are there common cases in both lists? How many inward citations did PageRank top 10 cases receive? Add brief comment on the result.
+
+## Answer 4
+```{r}
+total_g <- graph_from_data_frame(cite[, c("citing.usid", "cited.usid")], directed=T)
+total_pr <- page_rank(total_g)$vector
+pr_dta <- data.frame(id = names(total_pr), total_pr, row.names = NULL)# need to check
+
+jud <- merge(jud, pr_dta, by.x="usid", by.y="id", all.x=T)
+pr_order <- order(jud$total_pr, decreasing=T)
+pr_top10 <- jud[pr_order[1:10], ]
+pr_top10
+indg_order <- order(jud$indg, decreasing=T)
+indg_top10 <- jud[indg_order[1:10], ]
+indg_top10
+# how many cases overlap? 
+sum(pr_top10$caseid %in% indg_top10$caseid)
+```
+
+
+## Question 5
+
+Examine the validity of PageRank score and Inward degree by comparing them with legal experts' qualitative evaluations. In our data `judicial.csv`, the column `oxford` and `liihc` are binary indicators about whether a case is marked as important by *The Oxford Guide to United State Supreme Court Decisions(Hall, 1999)* and *Legal Information Insitute* respectively. Report how many cases in PageRank list and inward degree list were marked as important in qualitative evaluation separately. How would you interpret the overlap/difference between experts' evaluation and our lists base on the centrality measures??
+
+## Answer 5
+
+```{r}
+# Top 10 PageRank cases that are included in Oxford and LII lists
+table(pr_top10$oxford, pr_top10$liihc)
+# Top 10 inward degrees cases that are included in Oxford and LII lists
+table(indg_top10$oxford, indg_top10$liihc)
+```
+
+Interestingly, no single case was included in both lists. Also, it's worth mentioning that cases with high PageRank score tend to show higher outward degree compared to inward degree. We can also see that some of the important cases were not noticed in the expert rankings. 
+
+## Question 6
+
+This time, we will try to track the impact of one landmark case, *Brown vs. Board of Education 347 U.S. 483 (1954)* along the time line using the centrality measures. *Brown vs. Board of Education* is considered as one of the most critical decisions in U.S. Civil Rights history. This case declared that racial segregation in public schools by state laws was unconstitutional. 
+
+Interestingly, a network *evolves*. That is, new cases are accumulated every year and therefore the centrality measures which are context dependent is expected to vary along the time line. Here, you need to partition the network data at the end of each year and repeat the same analysis. You can do it by building a `for` loop.
+
+Plot the inward degrees starting from the decision year of the brown case(1954). Do you find any noticeable feature from the plot? What's the time trend of inward degree in this case? How reflective of the legal importance of the Brown case is this plot? Give substantive interpretation.  
+
+## Answer 6
+
+```{r}
+year <- 1954:2002
+
+brown_path <- matrix(NA, nrow=length(year), ncol=2)
+colnames(brown_path) <- c("indg", "PageRank")
+rownames(brown_path) <- year
+
+brown <- "347US483"
+
+for(i in 1:length(year)){
+  sub_data <- subset(cite , citing.year <= year[i])
+  sub_g <- graph_from_data_frame(sub_data[ ,c("citing.usid", "cited.usid")], directed=T)
+  sub_indg <- degree(sub_g, mode = "in")
+  sub_PR <- page_rank(sub_g)$vector
+  
+  if (brown %in% names(sub_indg)){
+    brown_path[i, "indg"] <- sub_indg[names(sub_indg)==brown]
+  }
+  if (brown %in% names(sub_PR)){
+    brown_path[i, "PageRank"] <- sub_PR[names(sub_PR)==brown]
+  }
+}
+
+plot((1954:2002), brown_path[ , "indg"], 
+     main="Brown vs Board of Education",
+     ylab="Inward Citations", xlab="Years")
+abline(v=1964)
+
+plot((1954:2002), brown_path[ , "PageRank"], 
+     main="Brown vs Board of Education",
+     ylab="Page Rank", xlab="Years")
+abline(v=1964)
+```
+
+Compared to the inward degrees, the PageRank score captures two sudden jumps in the mid 1960s and early 1970s. Judicial scholars point out that *Brown* was legally weak when it was first issued. However, as the civil rights movement progressed, the meaning of this case gradually developed. The first critical momentum came in 1964 when the Civil Rights Act was passed. Later, during early 1970s, many landmark cases in US civil rights history such as *Swann v. Charlotte-Mecklenburg Board of Education, 402 U.S. 1 (1971)* cited *Brown*, which is consistent with the sharp increase in PageRank score during this period.
+

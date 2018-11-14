@@ -1,0 +1,270 @@
+---
+title: "Reducing Transphobia via Canvassing"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Can transphobia be reduced through in-person conversations and perspective-taking exercises, or *active processing*?  Following up on [the research](http://dx.doi.org/10.1126/science.1256151) that was shown to be fabricated, two researchers conducted a door-to-door canvassing experiment in South Florida targeting anti-transgender prejudice in order to answer this question. Canvassers held single, approximately 10-minute conversations that encouraged actively taking the perspective of others with voters to see if these conversations could markedly reduce prejudice.  This exercise is based on the following study:
+
+Broockman, David and Joshua Kalla. 2016. "[Durably reducing transphobia: a field experiment on door-to-door canvassing](https://dx.doi.org/10.1126/science.aad9713)." *Science*, Vol. 352, No. 6282, pp. 220-224.
+
+In the experiment, the authors first recruited registered voters ($n=68378$) via mail for an online baseline survey, presented as the first in a series of surveys. They then randomly assigned respondents of this baseline survey ($n=1825$) to either a treatment group targeted with the intervention ($n=913$) or a placebo group targeted with a conversation about recycling ($n=912$).  For the intervention, 56 canvassers first knocked on voters’ doors unannounced. Then, canvassers asked to speak with the subject on their list and confirmed the person's identity if the person came to the door. A total of several hundred individuals ($n=501$) came to their doors in the two conditions. For logistical reasons unrelated to the original study, we further reduce this dataset to ($n=488$) which is the full sample that appears in the `transphobia.csv` data.
+
+The canvassers then engaged in a series of strategies previously shown to facilitate active processing under the treatment condition: canvassers informed voters that they might face a decision about the issue (whether to vote to repeal the law protecting transgender people); canvassers asked voters to explain their views; and canvassers showed a video that presented arguments on both sides. Canvassers defined the term "transgender" at this point and, if they were transgender themselves, noted this. The canvassers next attempted to encourage "analogic perspective-taking". Canvassers first asked each voter to talk about a time when they themselves were judged negatively for being different. The canvassers then encouraged voters to see how their own experience offered a window into transgender people’s experiences, hoping to facilitate voters’ ability to take transgender people’s perspectives. The intervention ended with another attempt to encourage active processing by asking voters to describe if and how the exercise changed their mind. All of the former steps constitutes the "treatment." 
+
+The placebo group was reminded that recycling was most effective when everyone participates. The canvassers talked about how they were working on ways to decrease environmental waste and asked the voters who came to the door about their support for a new law that would require supermarkets to charge for bags instead of giving them away for free. This was meant to mimic the effect of canvassers interacting with the voters in face-to-face conversation on a topic different from transphobia.
+
+The authors then asked the individuals who came to their doors in either condition ($n=488$) to complete follow-up online surveys via email presented as a continuation of the baseline survey. These follow-up surveys began 3 days, 3 weeks, 6 weeks, and 3 months after the intervention when the baseline survey was also conducted. For the purposes of this exercise, we will be using the `tolerance.t#` variables (where `#` is 0 through 4) as the main outcome variables of interest. The authors constructed these dependent variables `tolerance.t#` as indexes by using several other measures that are not included in this exercise. In building this index, the authors scaled the variables such that they have a mean of 0 and standard deviation of 1 for the placebo group. Higher values indicate higher tolerance, lower values indicate lower tolerance relative to the placebo group. 
+
+The data set is the file `transphobia.csv`. Variables that begin with `vf_` come from the voter file. Variables in this dataset are described below:
+
+-------------------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- ----------------------------------------------------------
+ `id`                             Respondent ID
+ 
+ `vf_age`                         Age
+ 
+ `vf_party`                       Party: `D`=Democrats, `R`=Republicans and `N`=Independents
+ 
+ `vf_racename`                    Race: `African American`, `Caucasian`, `Hispanic`
+ 
+ `vf_female`                      Gender: `1` if female, `0` if male
+ 
+ `treat_ind`                      Treatment assignment: `1`=treatment, `0`=placebo
+ 
+ `treatment.delivered`            Intervention was actually delivered (=`1`) vs. was not (=`0`)
+ 
+ `tolerance.t0`                   Outcome tolerance variable at Baseline
+ 
+ `tolerance.t1`                   (see above) Captured at 3 days after Baseline
+ 
+ `tolerance.t2`                   (see above) Captured at 3 weeks after Baseline
+ 
+ `tolerance.t3`                   (see above) Captured at 6 weeks after Baseline
+ 
+ `tolerance.t4`                   (see above) Captured at 3 months after Baseline
+-------------------------------------------------------------------------------------------
+  
+## Question 1
+
+For each of the five waves, including the baseline survey, compute the sample average treatment effect of being assigned (`treat_ind`) to having an in-person conversation about perspective-taking for transgender issues on tolerance towards the transgender community.  Interpret the estimates and provide their implications for the internal validity of the study as well as the hypothesis in question.  Pay attention to how the outcome variables were created when interpreting the size of estimated treatment effect.  Next, plot the average tolerance level separately for the treatment and placebo group over time.  Use solid (open) circles for the treatment (placebo) groups, respectively, and connect these points with lines.  The horizontal axis should represent the number of days from the baseline survey. Interpret the resulting graph.
+
+## Answer 1
+
+```{r}
+data <- read.csv("data/transphobia.csv")
+## Create placebo and treatment datasets
+placebo <- data[data$treat_ind == 0, ]
+treatment <- data[data$treat_ind == 1, ]
+## sample average treatment effect estimates
+placebo.val <- colMeans(placebo[, 5:9], na.rm = TRUE)
+treatment.val <- colMeans(treatment[, 5:9], na.rm = TRUE)
+diff <- treatment.val - placebo.val #we'll use this later in Q5
+diff
+```
+
+The sample average treatment effects on tolerance level are positive across survey waves 1 to 4, indicating support for the authors’ hypothesis that being assigned an in-person conversation about perspective-taking for transgender issues can increase tolerance towards the transgender community. The effect sizes are fairly large, ranging from a 12% increase in standard deviation on the tolerance outcome to a 25% increase in standard deviation.  The estimated effect at the baseline is close to zero, implying that the randomization of treatment assignment appears to make the final treatment and placebo groups similar despite the fact that some observations were removed from the original data (we expect the proportion of those who failed to come to the door to be similar between the two groups because respondents at this point did not know which group they were assigned). We are thus more assured of the internal validity of the experiment as the randomization seems to have been conducted properly.
+
+```{r}
+days <- c(0, 3, 21, 42, 92)
+plot(days, placebo.val, xlim = c(0, 100), ylim = c(-0.1, 0.3), type = "b",
+     xlab = "Days from the baseline survey", ylab = "Average Tolerance Level",
+     main = "Difference in Average Tolerance Level Across Time by Group")
+points(days, treatment.val, type = "b", pch = 19)
+text(20, -0.05, "placebo group")
+text(20, 0.2, "treatment group")
+```
+
+The time series graph is revealing in this respect: while the average tolerance level for the placebo group remains relatively uniform across waves, the average tolerance level for the treatment group increases after the intervention, and does not drop back to pre-intervention levels in subsequent waves. This supports the authors’ hypothesis that the intervention has durable effects on respondents’ attitudes. 
+ 
+## Question 2
+
+We might wish to know the stickiness of attitudes over time. Compute (separately) the correlation coefficients for the treatment and placebo groups (based on assignment to treatment or placebo) across each 2-way combination of the dependent variables: `tolerance.t0`, `tolerance.t1`, `tolerance.t2`, `tolerance.t3` and `tolerance.t4`? Then find the difference in correlation coefficients between the placebo and treatment groups. Interpret the resulting correlations. Is there a difference across the groups? 
+
+## Answer 2
+
+```{r}
+## correlation matrices
+cor(treatment[, 5:9], use = "complete.obs")
+cor(placebo[, 5:9], use = "complete.obs")
+cor(treatment[, 5:9], use = "complete.obs") - cor(placebo[, 5:9], use = "complete.obs")
+```
+
+The correlations between waves for individuals assigned to both the placebo and treatment groups are quite positive and high, indicating stickiness in attitudes across time. The difference in correlation coefficients between the treatment and placebo groups are quite close to zero, indicating that the stickiness of placebo and treatment groups were similar.  This is consistent with the observation in Question 1 that the treatment appears to have durable effects on attitudes.
+
+## Question 3
+
+The authors of the study posited that it might be possible that Republicans, Democrats, and Independents respond differently to the treatment from one another because of party policy differences. It is also possible that respondent race might interact with the treatment in different ways resulting in different treatment effects. That is, there might be heterogeneous treatment effects of being assigned to the treatment (`treat_ind`) with `vf_party` and/or `vf_racename`. Evaluate whether these two hypotheses are true by finding the differences in average treatment effects by party as well as by race in treatment and placebo groups across waves.   Provide a time series plot of the treatment effects over time separately by party and by race with informative labels. Interpret the resulting plots. Pay attention to how the outcome variables were created when interpreting the magnitude of treatment effects.
+
+## Answer 3
+
+```{r}
+## Party heterogeneous effects
+placebo.d <- placebo[placebo$vf_party == "D", 5:9]
+placebo.r <- placebo[placebo$vf_party == "R", 5:9]
+placebo.n <- placebo[placebo$vf_party == "N", 5:9]
+treatment.d <- treatment[treatment$vf_party == "D", 5:9]
+treatment.r <- treatment[treatment$vf_party == "R", 5:9]
+treatment.n <- treatment[treatment$vf_party == "N", 5:9]
+
+democrats <- colMeans(treatment.d, na.rm = TRUE) - colMeans(placebo.d, na.rm = TRUE)
+democrats
+
+republicans <- colMeans(treatment.r, na.rm = TRUE) - colMeans(placebo.r, na.rm = TRUE)
+republicans
+
+independents <- colMeans(treatment.n, na.rm = TRUE) - colMeans(placebo.n, na.rm = TRUE)
+independents
+
+days <- c(0, 3, 21, 42, 92)
+plot(days, democrats, xlim = c(0, 100), type = "b", col="blue", pch = 19, ylim = c(-0.4, 0.4),
+     xlab = "Days from the baseline survey", ylab = "Estimated sample average treatment effect", 
+     main = "Trends in treatment effects across party groups")
+points(days, republicans, type = "b", col = "red", pch = 19)
+points(days, independents, type = "b", col = "green", pch = 19)
+text(90, 0.25, "Democrats", col = "blue")
+text(90, 0.01, "Republicans", col = "red")
+text(40, 0.3, "Independents", col = "green")
+```
+
+There are some, though not very clear, differences in how average treatment effects vary by party across time. Democrats have a higher average treatment effect (`r round(democrats[2],digits=3)*100`% increase in sd of the tolerance outcome) in Wave 1 (+3 days after the baseline survey) than Independents (`r round(independents[2],digits=3)*100`%) , who in turn have a higher average treatment effect than Republicans (`r round(republicans[2],digits=3)*100`%). However, over time while Democrats have mostly similar average treatment effects, Republicans and Independents see increases in the treatment effect and then a slight decrease.  For some reason, there appears to be a sizable negative effect at the baseline among Republicans.  It is difficult to know why such an effect exists but it raises a concern about the internal validity of the study.  
+
+```{r}
+## Race 
+placebo.aa <- placebo[placebo$vf_racename == "African American", 5:9]
+placebo.c <- placebo[placebo$vf_racename == "Caucasian", 5:9]
+placebo.h <- placebo[placebo$vf_racename == "Hispanic", 5:9]
+treatment.aa <- treatment[treatment$vf_racename == "African American", 5:9]
+treatment.c <- treatment[treatment$vf_racename == "Caucasian", 5:9]
+treatment.h <- treatment[treatment$vf_racename == "Hispanic", 5:9]
+
+afram <- colMeans(treatment.aa, na.rm = TRUE) - colMeans(placebo.aa, na.rm = TRUE)
+afram
+
+caucasian <- colMeans(treatment.c, na.rm = TRUE) - colMeans(placebo.c, na.rm = TRUE)
+caucasian
+
+hispanic <- colMeans(treatment.h, na.rm = TRUE) - colMeans(placebo.h, na.rm = TRUE)
+hispanic 
+
+days <- c(0, 3, 21, 42, 92)
+plot(days, afram, xlim = c(0, 100), type = "b", pch = 19, ylim = c(-0.2, 0.4),
+     xlab = "Days from the baseline survey", ylab = "Estimated sample average treatment effect", 
+     main = "Trends in treatment effects across racial groups")
+points(days, caucasian, type = "b", col = "blue", pch = 19)
+points(days, hispanic, type = "b", col = "red", pch = 19)
+text(20, 0.05, "African American")
+text(20, 0.3, "Caucasian", col = "blue")
+text(92, 0.2, "Hispanic", col = "red")
+```
+
+In Wave 1, Caucasians and Hispanics had much higher treatment effects (`r round(caucasian[2],digits=3)*100`% and `r round(hispanic[2],digits=3)*100`% increases in sd of the tolerance outcome, respectively) than African Americans (`r round(afram[2],digits=3)*100`%). Across time, the treatment effect stayed highest for Caucasians and Hispanics, while for African Americans experienced a drop in the treatment effect over time.  At the baseline, the tolerance level appears to be balanced across the treatment and placebo groups within each race.
+
+## Question 4
+
+Attrition, or drop-out, is a common problem for panel survey studies. In the case of the transphobia experiment, some individuals who responded to the baseline survey did not complete follow up surveys. Examine the extent to which the sample remained representative of the original sample with the implementation of each survey wave, by computing the attrition rate (i.e., the proportion of baseline survey respondents who did not answer each subsequent survey) separately for the placebo and treatment groups over time.  What is the attrition rate for placebo and treatment groups going from Baseline (Wave 0) to 3 days (Wave 1)? From Baseline (Wave 0) to 3 weeks (Wave 2)? Continue for all Waves and create a time series plot for the attrition rate by group. Do we observe any asymmetrical attrition based on treatment group? How might differences in attrition across groups affect how we interpret our findings?
+
+Moreover, is attrition more likely along certain covariates? Explore this question with regards to `vf_female` and `vf_party`, calculating the attrition rate for each subgroup (female, male, democrat, republican) in Wave 4 only.  Comment on some of the implications attrition through these covariates would have for the analysis. 
+
+## Answer 4
+
+```{r}
+attrition.placebo <- colMeans(is.na(placebo[, 5:9]))  # placebo
+attrition.treatment <- colMeans(is.na(treatment[, 5:9]))  # attrition rates 
+attrition.placebo
+attrition.treatment
+
+days <- c(0, 3, 21, 42, 92)
+plot(days, attrition.placebo, xlim = c(0, 100), type = "b", ylim = c(-0.01,0.4),
+     xlab = "Days from the baseline survey", ylab = "Proportion of attriters", 
+     main = "Trends in attrition across treatment and placebo")
+points(days, attrition.treatment, type = "b", pch = 19)
+text(40, 0.15, "Placebo group")
+text(40, 0.25, "Treatment group")
+```
+
+The attrition rates across waves indicate that after an initial jump in attrition, later survey waves had a relatively similar proportion of respondents remaining in the survey with the baseline rate. However, overall, the treatment group shows slightly higher rates of attrition, across waves, with an average attrition rate across Waves 1-4 of `r round(mean(attrition.treatment[2:5]),digits=3)*100`% while the placebo group had an average attrition rate of `r round(mean(attrition.placebo[2:5]),digits=3)*100`%. The differential attrition rates across treatment and placebo groups mean we might worry about the internal validity of the experiment especially if the treatment group attriters were very different from the placebo group attriters.
+
+```{r}
+## differential attrition by covariates, wave 4 only
+## female
+mean(is.na(data$tolerance.t4[data$vf_female == 1])) 
+## male
+mean(is.na(data$tolerance.t4[data$vf_female == 0])) 
+## democrat
+mean(is.na(data$tolerance.t4[data$vf_party == "D"]))
+## republican
+mean(is.na(data$tolerance.t4[data$vf_party == "R"]))
+```
+
+The covariate attrition analysis shows a higher rate of attrition for Republicans (`r round(mean(is.na(data$tolerance.t4[data$vf_party == "R"])),digits=3)`) as well as for men (`r round(mean(is.na(data$tolerance.t4[data$vf_female == 0])),digits=3)`), than the rates of attrition for Democrats (`r round(mean(is.na(data$tolerance.t4[data$vf_party == "D"])),digits=3)`) and women (`r round(mean(is.na(data$tolerance.t4[data$vf_female == 1])),digits=3)`). An important design assumption is that the treatment does not affect the composition of the individuals who take each follow-up survey. If certain types of individuals experiencing face-to-face conversations and engaging in active processing about issues on transphobia resulted in them attriting from the study, we might worry that our study findings are compromised.  
+
+## Question 5
+
+We have defined the treatment and placebo groups based on the condition to which an individual was randomly assigned. However, in the experiment not everyone assigned to the treatment condition received the treatment. Of the 236 individuals who identified themselves at their doors in the treatment group, 185 began the conversation about transphobia rather than refusing to talk at all after identifying themselves and hearing the canvassers' introduction.  In addition, the treatment (conversation about transphobia) was inadvertently delivered to 11 individuals in the placebo group (who were supposed to have a conversation about recycling) due to canvasser error.  
+
+Compute the average difference in the tolerance level (separately for each wave as done in Question 1) among the people assigned to treatment status who actually received the treatment conversation, compared to the people assigned to placebo status who received the placebo conversation. Create a time series graph of the average treatment effects for the subgroup of people assigned to treatment status who actually received the treatment conversation and the people assigned to placebo status who received the placebo conversation compared to the full sample across time.  How do the estimates differ from those computed in Question 1? 
+
+To investigate the validity of these new estimates, compute the proportion of individuals who, among those contacted, actually engaged in the in-person conversation. Does this contact rate vary by whether the respondent is male or female (`vf_female`)? By party (`vf_party`)? By race (`vf_race`)?  What do the results of this analysis imply about (1) the difference between these new estimates and those computed in Question 1 and (2) the internal validity of these new estimates? What does this complication of only some respondents receiving the treatment imply when interpreting the results presented in Question 1? 
+
+## Answer 5
+
+```{r}
+## create placebo group that got placebo and treatment group that got treatment
+received.treatment <- data[data$treatment.delivered == 1 & data$treat_ind == 1,]
+received.placebo <- data[data$treat_ind == 0 & data$treatment.delivered != 1,]
+## treatment effects across each wave for people who received the treatment they were assigned to
+received.treatment.effect <- rep(NA,5)
+received.treatment.effect[1]<-mean(received.treatment$tolerance.t0, na.rm = TRUE) - 
+  mean(received.placebo$tolerance.t0,na.rm = TRUE)
+received.treatment.effect[2]<-mean(received.treatment$tolerance.t1, na.rm = TRUE) - 
+  mean(received.placebo$tolerance.t1, na.rm = TRUE)
+received.treatment.effect[3]<-mean(received.treatment$tolerance.t2, na.rm = TRUE) - 
+  mean(received.placebo$tolerance.t2, na.rm = TRUE)
+received.treatment.effect[4]<-mean(received.treatment$tolerance.t3, na.rm = TRUE) - 
+  mean(received.placebo$tolerance.t3, na.rm = TRUE)
+received.treatment.effect[5]<-mean(received.treatment$tolerance.t4, na.rm = TRUE) - 
+  mean(received.placebo$tolerance.t4, na.rm = TRUE)
+received.treatment.effect
+## plot the treatment effects against treatment effects from previous Q1
+days <- c(0, 3, 21, 42, 92)
+plot(days, diff, xlim = c(0, 100), ylim = c(-0.1, 0.3), type = "b",
+     xlab = "Days from the baseline survey", ylab = "Average treatment effect",
+     main="Average treatment effect for full sample \n vs subgroup who received correct treatment")
+points(days, received.treatment.effect, type = "b", pch = 19)
+text(80, 0.15, "full sample")
+text(60, 0.3, "received correct treatment subgroup")
+```
+
+When looking at the treatment effects for the correctly treated, we see that the treatment effects in all the waves are slightly higher on average than previously estimated in Question 1. The treatment effects for the subset of correctly treated individuals in Waves 1-4 range from a 17.9%-26.7% increase in sd of the tolerance outcome, whereas on the full sample the treatment effect range is from `r round(min(diff[2:5]),digits=3)*100`% to `r round(max(diff),digits=3)*100`%. The temporal trends of the full sample and correctly treated group are similar, however.  
+
+```{r}
+## proportion of people assigned to treatment who actually received the treatment as well 
+## as the proportion of people assigned to placebo who received placebo (and did not accidentally receive treatment). 
+
+prop.treatment.got.treatment<- nrow(received.treatment)/nrow(treatment)
+prop.treatment.got.treatment
+prop.placebo.got.placebo<- nrow(received.placebo)/nrow(placebo)
+prop.placebo.got.placebo
+```
+
+`r round(prop.treatment.got.treatment,digits=2)*100`% of the people assigned to treatment actually received the treatment, while `r round(prop.placebo.got.placebo,digits=2)*100`% of the people assigned to placebo received the placebo. These are pretty high percentages so we can regain some degree of confidence in our original estimates as we're only missing a small portion of people in each group, though there are more people in the treatment group who didn't receive the treatment.  
+
+```{r}
+## by sex,party,race
+    # create variable that indicates that people assigned to treatment got treatment, people assigned to placebo got placebo
+    
+data$correct.conversation<-ifelse((data$treatment.delivered == 1 & data$treat_ind == 1)
+                                |(data$treat_ind == 0 & data$treatment.delivered != 1),1,0) 
+                                
+tapply(data$correct.conversation, data$vf_female, mean, na.rm = TRUE)
+tapply(data$correct.conversation, data$vf_party, mean, na.rm = TRUE)
+tapply(data$correct.conversation, data$vf_race, mean, na.rm = TRUE)
+```
+
+The rate of delivery of the correct treatment did not vary by gender very much, but Democrats and Other Party members were more likely than Independents and Republicans to receive delivery of the correct treatment. Likewise, African Americans were slightly more likely than Caucasians, who were more likely than Hispanics, to receive the correct treatment. 
+
+We have to be cautious in interpreting the treatment effects for just the people who were contacted and delivered the correct treatment or placebo as the people who came to the door to be contacted (so that they could receive the treatment/placebo) were not randomized. It would not be prudent to estimate the treatment effects using only those who were contacted in the study. However, this finding suggests we might have underestimated the treatment effect in our previous estimation in Question 1. In Question 1, we estimated the treatment effect based on treatment assignment; however since not everyone assigned to treatment received treatment and not everyone assigned to placebo received placebo, what we estimated was not the average effect of receiving the treatment in Question 1, but rather the effect of being assigned to the treatment.
+

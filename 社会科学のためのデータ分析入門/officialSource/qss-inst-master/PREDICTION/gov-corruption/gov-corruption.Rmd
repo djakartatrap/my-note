@@ -1,0 +1,192 @@
+---
+title: "Government Revenues and Corruption"
+output: pdf_document
+---
+
+This exercise analyzes the data from a recent paper that studies whether additional government revenues affect political corruption or the quality of politicians. The paper can be found at: 
+
+Brollo, Fernanda, et al. ["The political resource curse."](https://doi.org/10.1257/aer.103.5.1759) *The American Economic Review* 103.5 (2013): 1759-1796.
+
+The authors argue that a "political resource curse" exists - that an increase in non-tax government revenues leads to more corruption and lowers the quality of politicians. First, with a larger budget size, incumbent politicians are more able to grab political rent without being noticed by the electorate. Second, a larger budget attracts challengers with poorer quality so that incumbents' misbehavior is punished less frequently.
+
+The authors wish to identify the causal effect of additional federal transfers on corruption and candidate quality. Their theory states that additional non-tax revenues cause corruption, so they use transfers (the *treatment*) from the federal government to municipal governments as exogenous increases in non-tax revenues. The authors ask whether or not larger transfers lead to corruption, so the outcome is the occurence of bad administration or overt corruption. Since corruption is a somewhat vague concept, the authors use two measurements to make sure that their results do not depend on a particular definition of corruption. To avoid this, the authors use two *separate* definitions of corruption to avoid this - 'narrow' corruption includes severe irregularities in audit reports, while 'broad' corruption is a looser interpretation "which includes irregularities [in audit reports] that could also be interpreted as bad administration rather than as overt corruption" (p. 1774).
+
+The data can found in `corruption.csv` in the `data` folder.
+
+ -------------------------------- ----------------------------------------------------------
+ Name                             Description
+ -------------------------------- ----------------------------------------------------------
+ `broad`                          Whether any irregularity (this might include bad administration rather than                                             corruption) was found or not.
+ 
+ `narrow`                         Whether any severe irregularity that is more likely to be visible to voters
+                                  was found or not.
+ 
+ `fpm`                            The FPM transfers, in $100,000 at 2000 prices.
+ 
+ `pop`                            Population estimates.
+ 
+ `pop_cat`                        Population category with respect to FPM cutoffs.
+ -------------------------------------------------------------------------------------------
+
+## Question 1
+
+The authors use a Regression Discontinuity (RD) design. What do the authors use as the *forcing variable* and outcome variable? Discuss why the authors can't simply compare all "treated" and "non-treated" villages. Then, discuss how the RD design addresses this problem. What is one weakness of the RD design? 
+
+## Answer 1
+
+The main idea of RD design is that, in the absence of random assignment, the researcher can attribute the change in outcome at the threshold of forcing variable to the change in the treatment. In this paper, the authors utilize population size as their forcing variable and analyze federal government transfers as the outcome on either side of specific policy thresholds. For example, suppose the federal government's transfer program gave \$1 million for municipalities with less than 500,000 people, and \$2 million for those with more than 500,000 people. Then, the RD design enables us to identify the average causal effect of increasing the transfers from \$1 to \$2 million dollars on corruption.
+
+The weakness of the RD design is that this average causal effect is identified only at the threshold, i.e., only for the municipalities whose population is 500,000.  This lack of external validity limits the potential applicability of the conclusions obtained from the RD design. For example, it would be a much less reasonable claim to assume that villages with 10,000,000 people are like those with 499,999 (or, for example, that politicians that won 80\% of the vote are comparable to those that won 35\%).
+
+## Question 2
+ 
+Read in the data below for all villages in the authors' dataset. Then, create three regressions. Regress the broad measure of corruption on:
+
+1. the measure of federal transfers
+2. the measure of federal transfers and population.
+3. the measure of federal transfers, population, and the population category (as a factor).
+
+Then, repeat this analysis for the narrow measure of corruption (so you will have six regressions in total). Interpret each of your three regressions. Can the coefficient be interpreted causally in these models? Explain why or why not.
+
+## Answer 2
+
+```{r}
+corrupt <- read.csv("data/corruption.csv")
+
+## Broad corruption
+lm1 <- lm(broad ~ fpm, data = corrupt)
+lm2 <- lm(broad ~ fpm + pop, data = corrupt)
+lm3 <- lm(broad ~ fpm + pop + as.factor(pop_cat), data = corrupt)
+
+## compare fpm coefficient in each
+c(lm1$coefficients["fpm"], lm2$coefficients["fpm"], lm3$coefficients["fpm"])
+
+## Narrow corruption
+lm1 <- lm(narrow ~ fpm, data = corrupt)
+lm2 <- lm(narrow ~ fpm + pop, data = corrupt)
+lm3 <- lm(narrow ~ fpm + pop + as.factor(pop_cat), data = corrupt)
+
+## compare fpm coefficient in each
+c(lm1$coefficients["fpm"], lm2$coefficients["fpm"], lm3$coefficients["fpm"])
+```
+
+The results are very similar for broad and narrow definitions of corruption. In both sets of regressions, the coefficients for FPM transfers are positive and significant, providing some evidence for the authors' claims. For example, the third model estimates a `r round(lm3$coefficients["fpm"], 2) * 100`% increase in narrow corruption for every additional $100,000 in FPM transfers.  However, since FPM transfers are not randomly assigned to many municipalities, we can *not* interpret these coefficients causally unless there are no other confounders. 
+
+## Question 3
+
+First, let's perform a simple RD analysis to test whether the cutoffs were properly utilized. One of the population thresholds used for FPM transfers was 10188. This means that villages with a population slightly above 10188 received different amounts of transfers to villages slightly below this population. For this analysis, we will use all villages within 500 people of this cutoff. Specifically, this means to take two separate subsets: one subset of villages with populations larger but less than 500 larger than 10188 and another subset of villages with populations smaller but less than 500 smaller than 10188. 
+
+Then, create a plot showing the relationship between population and fpm transfers for these villages. Please add a dotted vertical line to show the location of the cutoff (10188) on the x-axis. Additionally, fit two regressions and visualize them on the plot: one showing the relationship between population and FPM transfers for the subset of villages above the cutoff and another showing the relationship between population and FPM transfers for the subset of villages below the cutoff.
+
+## Answer 3
+
+The first step is to take the appropriate subsets: 
+
+```{r}
+## setup cutoff and indices
+cut <- 10188
+pop <- corrupt$pop
+
+above <- (pop - cut) > 0 & (abs(pop - cut) < 500)
+below <- (pop - cut) < 0 & (abs(pop - cut) < 500)
+
+## take subsets
+above <- corrupt[above,]
+above$col <- 1
+below <- corrupt[below,]
+below$col <- 2
+all <- rbind(above, below)
+```
+
+Next, we will fit two separate regressions - one to each "side" of the threshold. We're fitting one model to each side of threshold - if the regression lines are noticably different, this is good evidence that the threshold has an effect on our desired outcome.
+
+```{r}
+## two regressions
+above.lm <- lm(fpm ~ pop, data = above)
+below.lm <- lm(fpm ~ pop, data = below)
+
+## range for lm prediction
+above.range <- c(min(above$pop), max(above$pop))
+below.range <- c(min(below$pop), max(below$pop))
+```
+
+As in Section 4.3.4 of *QSS* (pp. 178-179), we will use predicted values to display our data and the regression lines on the same plot.
+
+```{r}
+## predicted values to include regressions on plot
+above.line <- predict(above.lm, newdata = data.frame(pop = above.range))
+below.line <- predict(below.lm, newdata = data.frame(pop = below.range))
+
+plot(all$pop, all$fpm, col = all$col + 2, 
+     main = "Relationship Between Population and FPM Transfers",
+    xlab = "Population", ylab = "FPM Transfer")
+abline(v = cut, col = "red", lty = "dashed")
+lines(below.range, below.line, col = "blue")
+lines(above.range, above.line, col = "green")
+```
+
+## Question 4
+
+Explain the plot that you just created. Why is this a useful analysis to perform? Specifically discuss how the regressions compare for villages right above and right below this cutoff: what do you notice? You will notice that the cutoff isn't "strict" - this means that entries with populations above the threshold will sometimes receive transfers lower than other villages with populations below the threshold. Sometimes villages did not receive the federal funds that they were legally entitled to. This is called "noncompliance," and often happens in real-world settings. However, our estimate at the threshold is what's called an Intention-to-Treat Effect (ITT). Even if we have noncompliance, we can calculate the ITT by using every village who was *assigned* treatment rather than those who simply complied with it. Explain why the randomization makes the ITT a valid estimate to use here. Give an example of another case in which noncompliance may lead us to estimate an ITT.
+
+## Answer 4
+
+This is a useful analysis to perform in order to confirm that the transfers were *in reality* distributed according to thow the authors assume. We see evidence that villages with populations slightly above the given policy cutoff do, on average, tend to receive higher transfers than villages with populations slightly below the cutoff. If we simply calculated the ATE for every village who distributed the funds properly, we may run into a selection problem: if there is a non-random process by which villages choose not to agree to the treatment, our estimate of the ATE will be biased. However, by focusing on the discontinuous threshold, the RD analysis identifies the ITT effect for the municipalities with the population size equal to the cutoff.
+
+## Question 5
+
+Now, we will perform a Regression Discontuity analysis by taking observations that are close to *any* of the cutoffs. In this question we will be completing the corruption analysis and no-longer focusing on FPM transfers, but instead comparing rates of corruption for villages just above and below the threshold. First, create a subset of the data that contains observations within 500 people of the population cuttofs: $\{10188, 13584, 16980, 23772, 30564, 37356, 44148\}$. For example, we want to include all villages that have populations within 500 people above or below any of these cutoffs (the R 'OR' operator, `|`, may be useful here). Then, use `lm()` to compare the rates of broad *and* narrow corruption for villages just above and just below this threshold (hint: after you take the subset for villages within this range, create an indicator variable to show whether the remaining observation is above or below the given cutoffs. Finally, use `lm()` to compare the means for observations at the two levels of this indicator variable). For one measure of corruption (your choice!), also compare the average rates of corruption (using the function `mean()` or `tapply()`) for villages just above and below the cutoffs and show that you get the same results as with `lm()`. Explain why.
+
+Which analysis, Question 2 or Question 5, gives a more reliable setimate of the desired causal effect? Why?
+
+## Answer 5
+
+```{r}
+## FPM cutoffs
+cuts <- c(10188, 13584, 16980, 23772, 30564, 37356, 44148)
+
+## identify units below threshold
+pop <- corrupt$pop
+
+## get those units above
+above <- pop > cuts[1] & pop <= cuts[1] + 500 | 
+  pop > cuts[2] & pop <= cuts[2] + 500 |
+  pop > cuts[3] & pop <= cuts[3] + 500 |
+  pop > cuts[4] & pop <= cuts[4] + 500 |
+  pop > cuts[5] & pop <= cuts[5] + 500 |
+  pop > cuts[6] & pop <= cuts[6] + 500 |
+  pop > cuts[7] & pop <= cuts[7] + 500
+
+## get those units below
+below <- pop < cuts[1] & pop >= cuts[1] - 500 | 
+  pop < cuts[2] & pop >= cuts[2] - 500 |
+  pop < cuts[3] & pop >= cuts[3] - 500 |
+  pop < cuts[4] & pop >= cuts[4] - 500 |
+  pop < cuts[5] & pop >= cuts[5] - 500 |
+  pop < cuts[6] & pop >= cuts[6] - 500 |
+  pop < cuts[7] & pop >= cuts[7] - 500
+
+## create indicator
+corrupt$above <- ifelse(corrupt$pop %in% pop[above], 1,
+                        ifelse(corrupt$pop %in% pop[below], 0, NA))
+
+## take subset
+thresholds <- subset(corrupt, !is.na(corrupt$above))
+
+## regressions & coefficients
+broadLM <- lm(broad ~ above, data = thresholds)
+narrowLM <- lm(narrow ~ above, data = thresholds)
+
+coef(broadLM)
+coef(narrowLM)
+
+## indocator, so regression is the same as taking the means across categories
+(broadMeans <- tapply(thresholds$broad, thresholds$above, mean))
+(narrowMeans <- tapply(thresholds$narrow, thresholds$above, mean))
+```
+
+By comparing villages just above the cutoffs to those just below, we can see that there is a sizable increase in incidents of both broad and narrow corruption for those villages just above the population cutoffs. Being just above this population threshold resulting in a `r round(coef(broadLM)[2], 2) * 100`% increase in broad measures of corruption and a similar `r round(coef(narrowLM)[2], 2) * 100`% increase in narrow measures of corruption. Notice that this leads to a much larger estimate than in earlier questions, which included only one cutoff. The assumed 'randomness' of the specific population size is used in the RD analysis to argue that this is a causal effect.
+
+We have considered only villages slightly above and below the given cutoffs, so the coefficients on `FPM` give a reliable estimate of the causal effect under the randomness assumption we made during the RD analysis. We discussed the assignment of the FPM transfers can be considered *as-if* random in a small neighborhood around the cutoffs. We should trust this estimate and analysis more than the one from Question 2 because of this threshold analysis (recall that Question 2 compared rates of corruption for all villages, not just those around the threshold at which FPM transfers were increased).
+
+Since we created an indicator to show that a village was 500 or less above a population cutoff (indicator = 1) and equivalently, 500 or less below the population cutoff (indicator = 0), regressing rates of corruption on this variable will simply compare mean corruption rates of groups with each value of the indicator. For example, we see that villages with populations just below these cutoffs had corruption in `r round(broadMeans["0"], 2) * 100`% of the time while villages with populations just above these cutoffs had corruption in `r round(broadMeans["1"], 2) * 100`% of the time.

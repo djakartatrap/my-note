@@ -1,0 +1,142 @@
+---
+title: "The Mark of a Criminal Record"
+output: pdf_document
+---
+
+In this exercise, we analyze the causal effects of a criminal record on the job prospects of white and black job applicants. This exercise is based on: 
+
+Pager, Devah. (2003). "[The Mark of a Criminal Record](https://doi.org/10.1086/374403)." *American Journal of Sociology* 108(5):937-975. You are also welcome to watch Professor Pager discuss the design and result [here](https://youtu.be/nUZqvsF_Wt0).
+
+To isolate the causal effect of a criminal record for black and white applicants, Pager ran an audit experiment. In this type of experiment, researchers present two similar people that differ only according to one trait thought to be the source of discrimination. This approach was used in the resume experiment described in Chapter 2 of *QSS*, where researchers randomly assigned stereotypically African-American-sounding names and stereotypically white-sounding names to otherwise identical resumes to measure discrimination in the labor market.
+
+To examine the role of a criminal record, Pager hired a pair of white men and a pair of black men and instructed them to apply for existing entry-level jobs in the city of Milwaukee. The men in each pair were matched on a number of dimensions, including physical appearance and self-presentation. As much as possible, the only difference between the two was that Pager randomly varied which individual in the pair would indicate to potential employers that he had a criminal record. Further, each week, the pair alternated which applicant would present himself as an ex-felon. To determine how incarceration and race influence employment chances, she compared callback rates among applicants with and without a criminal background and calculated how those callback rates varied by race.
+
+In the data you will use `ciminalrecord.csv` nearly all these cases are present, but 4 cases have been redacted. As a result, your findings may differ slightly from those in the paper. The names and descriptions of variables are shown below. You may not need to use all of these variables for this activity. We’ve kept these unnecessary variables in the dataset because it is common to receive a dataset with much more information than you need.
+
+
+------------------------------------------------------------------------------------------
+Name                        Description
+--------------------------- --------------------------------------------------------------
+`jobid`                     Job ID number  
+
+`callback`                  1 if tester received a callback, 0 if the tester did not receive a callback. 
+
+`black`                     1 if the tester is black, 0 if the tester is white.
+
+`crimrec`                   1 if the tester has a criminal record, 0 if the tester does not.
+
+`interact`                  1 if tester interacted with employer during the job application, 0 if tester does not interact with employer.
+`city`                      1 is job is located in the city center, 0 if job is located in the suburbs.
+
+`distance`                  Job’s average distance to downtown.
+
+`custserv`                  1 if job is in the costumer service sector, 0 if it is not.
+
+`manualskill`               1 if job requires manual skills, 0 if it does not.
+
+------------------------------------------------------------------------------------------
+
+## Question 1  
+
+Begin by loading the data into R and explore the data. How many cases are there in the data? Run `summary()` to get a sense of things. In how many cases is the tester black? In how many cases is he white?
+
+## Answer 1
+
+```{r}
+## load data
+audit <- read.csv("data/criminalrecord.csv")
+
+## number of observations
+nrow(audit)
+
+## get summary
+summary(audit)
+
+## black and white numbers
+table(audit$black)
+
+```
+
+There are `r nrow(audit)` observations. There are 396 cases with black applicants and 300 cases with white applicants (from output of `table()` function).  ** Use inline code whenever you refer to the results of the analysis so that it's clear to students where the answers come from**
+
+## Question 2  
+
+Now we examine the central question of the study. Calculate the proportion of callbacks for white applicants with and without a criminal record, and calculate this proportion for black applicants with and without a criminal record.
+
+## Answer 2
+
+```{r}
+## White Testers
+white <- subset(audit, black==0)
+callback.white.crim <- mean(white[white$crimrec==1, "callback"])
+callback.white.nocrim <- mean(white[white$crimrec==0, "callback"])
+
+## Black Testers
+black <- subset(audit, black==1)
+callback.black.crim <- mean(black[black$crimrec==1, "callback"])
+callback.black.nocrim <- mean(black[black$crimrec==0, "callback"])
+
+## Call back rate for white criminals
+callback.white.crim
+## Call back rate for white non-criminals
+callback.white.nocrim
+## Call back rate for black criminals
+callback.black.crim
+## Call back rate for black non-criminals
+callback.black.nocrim
+```
+
+The callback rate for whites with a criminal record was `r round(mean(white[white$crimrec==1, "callback"]), 3)` and the callback rate for whites without a criminal record was was `r round(mean(white[white$crimrec==0, "callback"]),3)`. The callback rate for blacks with a criminal record was `r round(mean(black[black$crimrec==1, "callback"]),3)` and the callback rate for blacks without a criminal record was `r round(mean(black[black$crimrec==0, "callback"]),3)`.  It is clear that those with a criminal record have a much lower callback rate than those without it.
+
+## Question 3
+
+What is the difference in callback rates between individuals with and without a criminal record within each race. What do these specific results tell us?  Consider both the difference in callback rates for records with and without a criminal record and the ratio of callback rates for these two types of records.
+
+## Answer 3
+
+```{r}
+## Absolute differences
+# Calculating within white difference
+white.diff.abs <- mean(white$callback[white$crimrec==0]) -  mean(white$callback[white$crimrec==1])
+white.diff.abs
+
+# Calculating within black difference
+black.diff.abs <- mean(black$callback[black$crimrec==0]) - mean(black$callback[black$crimrec==1])
+black.diff.abs
+
+## Relative differences
+# Calculating within white difference
+white.diff.relative <- mean(white$callback[white$crimrec==1])/mean(white$callback[white$crimrec==0])
+white.diff.relative
+
+# Calculating within black difference
+black.diff.relative <- mean(black$callback[black$crimrec==1])/mean(black$callback[black$crimrec==0])
+black.diff.relative
+```
+
+In terms of absolute difference, the difference in callback rates between black testers with and without a criminal record is `r round(black.diff.abs,3)`. Meanwhile, among white testers the difference in callback rates between those with a criminal record and without a criminal record is `r round(white.diff.abs,3)`. These results indicate that criminal records negatively affect employers’ decisions. Further, the absolute difference in callback rates is bigger for white applicants. In terms of relative difference, a white person with a criminal record was about half as likely to get a callback `r round(white.diff.relative,3)`. A black person with a criminal record was about one-third as likely to get a callback `r round(black.diff.relative,3)`. Comparing the absolute and relative differences leads to an interesting observation. When expressed in terms of absolute effects the mark of a criminal record seems more impactful for white applicants. But, when expressed in terms of relative effects, the mark of a criminal record seems more impactful for black applicants. This is an example of a more general phenomena where your conclusions can sometimes change depending on how exactly you choose to summarize your data.
+
+## Question 4
+
+Compare the callback rates of whites *with* a criminal record versus blacks *without* a criminal record. What do we learn from this comparison?
+
+## Answer 4
+
+Strikingly, black individuals with no criminal record were less likely to get a callback than a white person with a criminal record `r round(callback.black.nocrim, 3)` vs `r round(callback.white.crim,3)`. This fact became a part of the Howard Dean’s 2004 presidental stump speech, as described in this article from the New York Times. Later we will learn more about "statistical significance" to formally assess whether a difference this big might happen randomly.
+
+## Question 5
+
+When carrying out this experiment, Pager made many decisions. For example, she opted to conduct the research in Milwaukee; she could have done the same experiment in Dallas or Topeka or Princeton. She ran the study at a specific time: between June and December of 2001. But, she could have also run it at a different time, say 5 years earlier or 5 years later. Pager decided to hire 23-year-old male college students as her testers; she could have done the same experiment with 23-year-old female college students or 40-year-old male high school drop-outs. Further, the criminal record she randomly assigned to her testers was a felony convinction related to drugs (possession with intent to distribute, cocaine). But, she could have assigned her testers a felony conviction for assault or tax evasion. Pager was very aware of each of these decisions, and she discusses them in her paper. Now you should pick *one* of these decisions described above or another decision of your choosing. Speculate about how the results of the study might (or might not) change if you were to conduct the same study but alter this specific decision. This is part of thinking about the *external validity* of the study.
+
+## Answer 5
+
+Most answers should work here. Here’s an example:
+If Pager had chosen to give her testers a record of a more violent crime, such as murder, my guess is that the effect of criminal record would probably have been bigger for both black and white applicants. In fact, many people asked Pager this exact question about external validity so she ran a similar study in New York City in 2004. The results were actually quite similar as you can read in this paper:
+
+Pager, Western, and Bonikowski. 2009. “[Discrimination in a Low-Wage Labor Market: A Field Experiment](https://doi.org/10.1177/000312240907400505)” *American Sociological Review* 74:777-799.
+
+
+
+
+
+

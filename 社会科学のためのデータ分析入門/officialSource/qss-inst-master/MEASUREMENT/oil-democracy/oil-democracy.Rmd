@@ -1,0 +1,166 @@
+---
+title: "Oil, Democracy, and Development"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Researchers have theorized that natural resources may have an
+inhibiting effect on the democratization process.  Although 
+there are multiple explanations as to why
+this might be the case, one hypothesis posits that governments in
+countries with large natural resource endowments (like oil) are able
+to fund their operations without taxing civilians. Since
+representation (and other democratic institutions) are a compromise
+offered by governments in exchange for tax revenue, resource-rich
+countries do not need to make this trade.  In this exercise, we will
+not investigate causal effects of oil on democracy.  Instead, we
+examine whether the association between oil and democracy is
+consistent with the aforementioned hypothesis.  
+
+This exercise is in part based on Michael L. Ross. (2001). 'Does Oil
+ Hinder Democracy?' *World Politics*,53:3,
+ pp.325-361.
+
+The data set is in the
+csv file `resources.csv`.  The names and descriptions of variables are:
+
+
+-------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `cty_name`           Country name
+ 
+ `year`               Year
+ 
+ `logGDPcp`           Logged GDP per capita 
+ 
+ `regime`             A measure of a country's level of democracy: -10 (authoritarian) 
+                      to 10 (democratic) 
+ 
+ `oil`                Amount of oil exports as a percentage of the country's GDP 
+ 
+ `metal`              Amount of non-fuel mineral exports as a percentage of the country's GDP 
+ 
+ `illit`              Percentage of the population that is illiterate 
+ 
+ `life`               Life expectancy in the country 
+-------------------------------------------------------------------------------
+
+## Question 1
+
+Use scatterplots to examine the bivariate relationship between
+  logged GDP per capita and life expectancy as well as between logged
+  GDP per capita and illiteracy.  Be sure to add informative axis
+  labels. Also, compute the correlation separately for each bivariate
+  relationship.  Briefly comment on the results.  To remove missing
+  data when applying the `cor` function, set `use` argument
+  to `"complete.obs"`.
+  
+## Answer 1  
+  
+```{r}
+resources <- read.csv("data/resources.csv")
+
+par(cex = 1.25)
+plot(x = resources$logGDPcp, y = resources$life,
+     ylab = "Life Expectancy", xlab = "Logged GDP Per Capita")
+plot(x = resources$logGDPcp, y = resources$illit,
+     ylab = "Illiteracy Rate", xlab = "Logged GDP Per Capita")
+cor(resources$logGDPcp, resources$life, use = "complete.obs")
+cor(resources$logGDPcp, resources$illit, use = "complete.obs")
+```
+
+As we might expect, higher levels of GDP per capita are associated
+with higher life expectancy and lower illiteracy rates.
+
+## Question 2
+
+We focus on the following subset of the variables:
+`regime`, `oil`, `logGDPcp`, and
+  `illit`. Remove observations that have missing values in any
+  of these variables.  Using the `scale()` function, scale these
+  variables so that each variable has a mean of zero and a standard
+  deviation of one.  Fit the k-means clustering algorithm with two
+  clusters.  How many observations are assigned to each cluster?  Using
+  the original unstandardized data, compute the means of these variables in each cluster.
+
+
+## Answer 2
+
+```{r}
+res <- subset(resources, select = c("cty_name", "year", "regime",
+                             "oil", "logGDPcp", "illit"))
+resNoNA <- na.omit(res)
+resNoNAS <- scale(resNoNA[, 3:6])
+colMeans(resNoNA[, 3:6])
+apply(resNoNA[, 3:6], 2, sd)
+cluster2 <- kmeans(resNoNAS, centers = 2)
+table(cluster2$cluster)
+## this gives standardized answer, which is hard to interpret
+cluster2$centers
+## better to subset the original data and then compute means
+g1 <- resNoNA[cluster2$cluster == 1, ]
+colMeans(g1[, 3:6])
+g2 <- resNoNA[cluster2$cluster == 2, ]
+colMeans(g2[, 3:6])
+```
+  
+Countries assigned to the first cluster tend to have higher levels of
+oil but also lower levels of democracy, lower GDP per capita, and
+higher rates of illiteracy. This finding aligns with the claim that
+higher levels of natural resources may interfere with democratization.
+
+## Question 3 
+
+Using the clusters obtained above, modify the scatterplot
+  between logged GDP per capita and illiteracy rate in the following
+  manner.  Use different colors for the clusters so that we can easily
+  tell the cluster membership of each observation.  In addition, make
+  the size of each circle proportional to the `oil` variable so
+  that oil-rich countries stand out.  Briefly comment on the results.
+
+## Answer 3
+
+```{r}
+plot(x = resNoNA$logGDPcp, y = resNoNA$illit,
+     col = cluster2$cluster, cex = resNoNA$oil / 10 + 1,
+     ylab = "Illiteracy Rate", xlab = "Logged GDP Per Capita")  
+```
+
+The figure makes evident that countries clustered into the `resource
+rich' cluster typically have lower literacy rates and lower per
+capita GDPs. Importantly, the figure shows that many of the countries
+with relatively high oil exports also tend to have relatively high per
+capita GDPs.
+
+## Question 4
+
+Repeat the previous two questions but this time with three
+  clusters instead of two.  How are the results different?  Which
+  clustering model would you prefer and why?
+
+## Answer 4
+
+```{r}
+set.seed(1234)
+cluster3 <- kmeans(resNoNAS, centers = 3)
+g1 <- resNoNA[cluster3$cluster == 1, ]
+colMeans(g1[, 3:6])
+g2 <- resNoNA[cluster3$cluster == 2, ]
+colMeans(g2[, 3:6])
+g3 <- resNoNA[cluster3$cluster == 3, ]
+colMeans(g3[, 3:6])
+plot(x = resNoNA$logGDPcp, y = resNoNA$illit,
+     col = cluster3$cluster, cex = resNoNA$oil / 10 + 1,
+     ylab = "Illiteracy Rate", xlab = "logged GDP per capita") 
+```
+
+The revised model distinguishes the largest oil exporters from less
+democratized countries with low oil exports. This model is preferable
+because provides greater precision for characterizing oil rich
+countries. Compared to countries with relatively low oil exports, we
+find that the largest oil exporters tend to have more authoritarian
+regimes. Moreover, these countries tend to have relatively high per
+capita GDPs but also relatively high illiteracy rates.
+

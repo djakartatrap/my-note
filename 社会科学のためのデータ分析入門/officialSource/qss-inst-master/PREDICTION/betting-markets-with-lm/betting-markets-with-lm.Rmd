@@ -1,0 +1,176 @@
+---
+title: "Predicting Elections Using Betting Markets and Linear Models"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Earlier in the chapter, we studied the prediction of election outcomes
+using polls.  Here, we study the prediction of election outcomes based
+on betting markets.  In particular, we analyze data for the 2008 and
+2012 US presidential elections from the online betting company,
+Intrade.  At Intrade, people trade contracts such as 'Obama to win
+the electoral votes of Florida.'  Each contract's market price
+fluctuates based on its sales.  Why might we expect betting markets
+like Intrade to accurately predict the outcomes of elections or of
+other events?  Some argue that the market can aggregate available
+information efficiently.  In this exercise, we will test this 
+*efficient market hypothesis* by analyzing the market prices of
+contracts for Democratic and Republican nominees' victories in each
+state.
+
+The data files for 2008 is available in CSV format as
+`intrade08.csv`. The variables in these datasets are:
+
+--------------------------------------------------------------------------------
+ Name                Description
+ ------------------- -----------------------------------------------------------
+ `day`               Date of the session 
+ 
+ `statename`         Full name of each state (including District of Columbia in 2008) 
+ 
+ `state`             Abbreviation of each state (including District of Columbia in 2008)
+ 
+ `PriceD`            Closing price (predicted vote share) of Democratic Nominee's market
+ 
+ `PriceR`            Closing price (predicted vote share) of Republican Nominee's market 
+ 
+ `VolumeD`           Total session trades of Democratic Party Nominee's market
+ 
+ `VolumeR`           Total session trades of Republican Party Nominee's market 
+--------------------------------------------------------------------------------
+
+Each row represents daily trading
+information about the contracts for either the Democratic or
+Republican Party nominee's victory in a particular state. 
+
+We will also
+use the election outcome data.  This data file is `pres08.csv` with variables:
+
+--------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- ----------------------------------------------------------
+ `state.name`         Full name of state (only in `pres2008`)
+ 
+ `state`              Two letter state abbreviation
+ 
+ `Obama`              Vote percentage for Obama
+ 
+ `McCain`             Vote percentage for McCain
+ 
+ `EV`                 Number of electoral college votes for this state
+--------------------------------------------------------------------------------
+ 
+We'll also use poll data from 2008 in the file `polls08.csv`,  The variables in the polling data are:
+
+-------------------------------------------------------------------------------- 
+ Name                 Description
+ -------------------- ---------------------------------------------------------
+ `state`              Abbreviated name of state in which poll was conducted 
+ 
+ `Obama`              Predicted support for Obama (percentage)
+ 
+ `Romney`             Predicted support for Romney (percentage) 
+ 
+ `Pollster`           Name of organization conducting poll 
+ 
+ `middate`            Middle of the period when poll was conducted 
+--------------------------------------------------------------------------------
+
+What is the relationship between the price margins of the Intrade market and the actual margin of victory? Using only the market data from the day before the election in 2008, regress Obama’s actual margin of victory in each state on Obama’s price margin from the Intrade markets. We’ll start by constructing Obama’s Intrade margin from 2008
+
+## Question 1
+
+Load the Intrade and Election outcome data for 2008 and merge them together.
+
+Create a `DaysToElection` variable by subtracting the day of the election from each day in the dataset.  Now create a state margin of victory variable to predict, and a betting market margin to predict it with.
+
+## Answer 1 
+
+```{r}
+intrade08 <- read.csv("data/intrade08.csv")
+pres08 <- read.csv("data/pres08.csv")
+intresults08 <- merge(intrade08, pres08, by="state")
+head(intresults08)
+intresults08$DaysToElection <- as.Date("2008-11-04") - as.Date(intresults08$day)
+intresults08$obama.intmarg <- intresults08$PriceD - intresults08$PriceR
+intresults08$obama.actmarg <- intresults08$Obama - intresults08$McCain
+```
+
+## Question 2
+
+Considering only the trading one day from the election, predict the actual electoral margins from the trading margins using a linear model.  Does it predict well? How would you visualize the predictions and the outcomes together?  Hint: because we only have one predictor you can use `abline`.
+
+## Answer 2
+
+```{r}
+latest08 <- intresults08[intresults08$DaysToElection == 1,]
+int.fit08 <- lm(obama.actmarg ~ obama.intmarg, data = latest08)
+coef(int.fit08)
+summary(int.fit08)$r.squared
+plot(latest08$obama.intmarg, latest08$obama.actmarg,
+    xlab="Market's margin for Obama", ylab="Obama margin")
+abline(int.fit08)
+```
+
+## Question 3
+
+Even efficient markets aren’t omniscient. Information comes in about the election every day and the market prices should reflect any change in information that seem to matter to the outcome.
+
+We can examine how and about what the markets change their minds by looking at which states they are confident about, and which they update their ‘opinions’ (i.e. their prices) about. Over the period before the election, let’s see how prices for each state are evolving. We can get a compact summary of price movement by fitting a linear model to Obama’s margin for each state over the 20 days before the election.
+
+We will summarise price movement by the direction (up or down) and rate of change (large or small) of price over time. This is basically also what people in finance do, but they get paid more…
+
+Start by plotting Obama’s margin in West Virginia against the number of days until the election and modeling the relationship with a linear model.  Use the last 20 days.  Show the model's predictions on each day and the data.  What does this model's slope coefficient tells us about which direction the margin is changing and also how fast it is changing? 
+
+## Answer 3
+
+```{r}
+stnames <- unique(intresults08$state.name)
+## we're going to make a loop, so let's make one iteration with WV
+i <- 50
+recent <- subset(intresults08, subset=(DaysToElection <= 20) & (state.name==stnames[i]))
+recent.mod <- lm(obama.intmarg ~ DaysToElection, data=recent)
+plot(recent$DaysToElection, recent$obama.intmarg, xlab="Days to election", ylab="Market's Obama margin")
+abline(recent.mod)
+```
+
+## Question 4 
+
+Now do it for all states and collect the slope coefficients to see how volatile the state estimates are.
+
+## Answer 4
+
+```{r}
+change <- rep(NA, 51)
+names(change) <- stnames
+for (i in 1:51){
+    recent <- subset(intresults08, subset=(DaysToElection <= 20) & (state.name==stnames[i]))
+    recent.mod <- lm(obama.intmarg ~ DaysToElection, data=recent)
+    change[i] <- coef(recent.mod)[2]
+}
+hist(change, breaks=30)
+```
+
+For most states the market has converged on an opinion, but for some it changes its mind quite rapidly as the election approaches.
+
+## Question 5
+
+Now predict the winner of the election *one week before the election* using the Intrade data. To do so, first use the *two weeks before* that moment to fit state level linear models, then use those models to predict what will happen in each state.  How well does the model do predicting the election outcome?
+
+## Answer 5
+
+```{r}
+no.days.to.election <- as.Date("2008-11-04") - as.Date("2008-11-04")
+obamawins <- rep(NA, 51)
+names(obamawins) <- stnames
+for (i in 1:51){
+    recent <- subset(intresults08, subset=(DaysToElection <= 21) &
+    (DaysToElection > 7) & (state.name==stnames[i]))
+    pred.mod <- lm(obama.intmarg ~ DaysToElection, data=recent)
+    extrap <- data.frame(DaysToElection=no.days.to.election)
+    obamawins[i] <- predict(pred.mod, newdata=extrap) > 0
+}
+table(obamawins, latest08$obama.actmarg>0)
+```
+

@@ -1,0 +1,222 @@
+---
+title: "Mapping US Presidential Election Results over Time"
+output:
+  pdf_document: default
+  html_document:
+    fig_caption: yes
+---
+
+The partisan identities of many states have been stable over time. For example, Massachusetts is a solidly ``blue'' state, having pledged its electoral votes to the Democratic candidate in 8 out of the last 10 presidential elections. On the other extreme, Arizona's electoral votes went to the Republican candidate in 9 of the same 10 elections. Still, geography can occasionally be a poor predictor of presidential elections. For instance, in 2008, typically red states -- including North Carolina, Indiana, and Virginia -- helped elect Barack Obama to the presidency.
+
+------------------------------------------------------------------------------------------------------
+ Name                 Description
+ -------------------- --------------------------------------------------------------------------------
+ `state`              Full name of 48 states (excluding Alaska, Hawaii, and the District of Columbia)
+ 
+ `county`             County name
+ 
+ `year`               Election year
+ 
+ `rep`                Popular votes for the Republican candidate
+ 
+ `dem`                Popular votes for the Democratic candidate
+ 
+ `other`              Popular votes for other candidates
+ ------------------------------------------------------------------------------------------------------
+ 
+In this exercise, we will again map the US presidential election results for 48 states. However, our data will be more detailed in two respects. First, we will analyze data from 14 presidential elections from 1960 to 2012, allowing us to visualize how the geography of party choice has changed over time. Second, we will examine election results at the county level, allowing us to explore the spatial distribution of Democratic and Republican voters within states.  The data file is available in CSV format as `elections.csv`. Each row of the data set represents the distribution of votes in that year's presidential election from each county in the United States. The table above presents the names and descriptions of variables in this data set.
+
+## Question 1
+
+We begin by visualizing the outcome of the 2008 US presidential election at the county level. Begin with Massachusetts and Arizona and visualize the county-level outcome by coloring counties based on the two-party vote share. The color should range from pure blue (100\% Democratic) to pure red (100\% Republican) using the RGB color scheme.  Use the `county` database in the `maps` package.  The `regions` argument of the `map()` function enables us to specify the state and county.  The argument accepts a character vector, each entry of which has the syntax of `state, county`. Provide a brief comment.
+
+## Answer 1
+
+```{r}
+par(cex = 1.5)
+library(maps)
+election <- read.csv("data/elections.csv")
+## create a character vector of `state,county' inputs
+election$poly <- paste(election$state, election$county, sep = ",")
+## coloring based on two-party vote share
+election$Dem <- election$dem / (election$dem + election$rep)
+election$Rep <- election$rep / (election$dem + election$rep)
+election$col <- rgb(red = election$Rep, blue = election$Dem, green = 0)
+## 2008 election
+election08 <- subset(election, subset = (year == 2008))
+## initialize a map for Massachusetts
+map(database = "state", region = "massachusetts")
+map(database = "county", 
+    region = election08$poly[election08$state == "massachusetts"], 
+    col = election08$col[election08$state == "massachusetts"], 
+    fill = TRUE, add = TRUE)
+title("Massachusetts")
+## initialize a map for Arizona
+map(database = "state", region = "arizona")
+map(database = "county", 
+    region = election08$poly[election08$state == "arizona"], 
+    col = election08$col[election08$state == "arizona"], 
+    fill = TRUE, add = TRUE)
+title("Arizona")
+```
+
+We observe significant variation within each state.  While every county in Massachusetts went to Obama in 2008, some counties are purple rather than blue, indicating a significant number of Republican voters in these counties.  Similarly, while Arizona went to McCain, four counties -- Apache, Coconino, Pima, and Santa Cruz -- were won by Obama and therefore appear more blue than red.
+
+## Question 2
+
+Next, using a loop, visualize the 2008 county-level election results across the United States as a whole. Briefly comment on what you observe.
+
+## Answer 2
+
+```{r}
+par(cex = 1.5) 
+states <- unique(election08$state)
+map(database = "state")
+for (i in 1:length(states)) { 
+    iter.data <- subset(election08, subset = (state == states[i])) 
+    map(database = "county", region = iter.data$poly, 
+        col = iter.data$col, fill = TRUE, add = TRUE)
+}
+title(main = "2008 US Presidential Election Results")
+```
+
+Many counties in the Midwest are primarily red, suggesting that they had a large number of Republican votes.  In contrast, much of New England went to Obama. However, in general counties were divided amongst the two political parties.  This has led to the observation that America is better described as ``purple'' than as red and blue.
+
+## Question 3
+
+We now examine how the geographical distribution of US presidential election results has changed over time at the county-level. Starting with the 1960 presidential election, which saw Democratic candidate John F. Kennedy prevail over Republican candidate Richard Nixon, use animation to visualize the county-level election returns for each presidential election up to 2012. Base your code on what you programmed to answer the previous question.
+
+## Answer 3
+
+```{r}
+par(cex = 1.5)
+library("animation")
+saveHTML({
+    for (i in 1:14) { # 14 elections from 1960 to 2012
+        iter.data1 <- subset(election, 
+                             subset = (year == 1960 + 4 * (i - 1))) 
+        states <- unique(iter.data1$state)
+        map(database = "state")
+        for (j in 1:length(states)) { 
+            iter.data2 <- subset(iter.data1, 
+                                 subset = (state == states[j])) 
+            map(database = "county", region = iter.data2$poly, 
+                col = iter.data2$col, fill = TRUE, add = TRUE)
+        }
+        title(main = paste("County-level Election Results,", 
+                  1960 + 4 * (i - 1), "Presidential Election"))
+    }
+}, htmlfile = "elections.html", outdir = getwd(), autobrowse = FALSE)
+```
+
+## Question 4
+
+In this exercise, we quantify the degree of partisan segregation for each state. We consider a state to be politically segregated if Democrats and Republicans tend to live in different counties.  A common way to quantify the degree of residential segregation is to use the *dissimilarity index*.  This index is given by the following formula,
+
+  $$
+    \text{dissimilarity index} =  \frac{1}{2} \sum_{i=1}^N \Big(\frac{d_i}{D} - \frac{r_i}{R} \Big). 
+  $$
+  
+In the formula, $d_i$ ($r_i$) is the number of Democratic (Republican) votes in the $i$th county and $D$ ($R$) is the total number of Democratic (Republican) votes in the state.  $N$ represents the number of counties. This index measures the extent to which Democratic and Republican votes are evenly distributed within states.  It can be interpreted as the percentage of one group that would need to move in order for its distribution to match that of the other group. Using data on Democratic and Republican votes from the 2008 presidential election, calculate the dissimilarity index for each state.  Which states are among the most (least) segregated according to this measure?  Visualize the result as a map. Briefly comment on what you observe.
+
+## Answer 4
+
+```{r}
+par(cex = 1.5)
+indices <- data.frame(state = states, seg = NA)
+for (i in 1:length(states)){
+    iter.data <- subset(election08, subset = (state == states[i]))
+    D <- sum(iter.data$dem)
+    R <- sum(iter.data$rep)
+    indices$seg[i] <- sum(abs(iter.data$dem / D - iter.data$rep / R)) / 2
+}
+indices <- indices[order(indices$seg, decreasing = TRUE), ]
+head(indices)
+tail(indices) # returns last six observations of data frame
+map(database = "state")
+for (i in 1:nrow(indices)) {
+    map(database = "state", region = indices$state[i], 
+      col = rgb(red = 0, blue = 0, green = 100 / 255, 
+          alpha = indices$seg[i] / max(indices$seg)), 
+      fill = TRUE, add = TRUE)
+}
+title("Political Segregation")
+```
+
+Interestingly, the most politically segregated states, including Georgia, Mississippi, Alabama, Tennessee, and Texas, tend to be located in the South. Non-Southern states in the top ten most segregated states tend to have major metropolitan cities, such as Chicago, IL and New York, NY. Recall that the segregation index can be interpreted as the percentage of one group that would have to move to be distributed exactly like the other group. According to our estimates, about 30\% of Georgia Democrats (Republicans) would have to move across counties to achieve the spatial distributions of Georgia Republicans (Democrats). On the other hand, only about 5\% of Connecticut Democrats (Republicans) would have to move.
+
+## Question 5
+
+Another way to compare political segregation across states is to assess whether counties within a state are highly unequal in terms of how many Democrats or Republicans they have. For example, a state would be considered segregated if it had many counties filled with Democrats and many with no Democrats at all. In Chapter 3, we considered the Gini coefficient as a measure of inequality (see Section 3.6.2). Calculate the Gini coefficient for each state based on the percentage of Democratic votes in each county. Give each county the same weight, disregarding its population size.  Which states have the greatest (or lowest) value of the index?  Visualize the result using a map.  What is the correlation between the Gini index and the dissimilarity index you calculated above? How are the two measures conceptually and empirically different?  Briefly comment on what you observe and explain the differences between the two indexes.  To compute the Gini index, use the `ineq()` function in the `ineq` package by setting its argument `type` to `"Gini"`.
+
+## Answer 5 
+
+```{r}
+par(cex = 1.5)
+library(ineq)
+indices$gini <- NA
+## compute Gini index for each state through a loop
+for (i in 1:nrow(indices)) {
+    iter.data <- subset(election08,
+                        subset = (state == indices$state[i]))
+    indices$gini[i] <- ineq(iter.data$Dem, type = "Gini")
+}
+summary(indices$gini)
+## sort the data frame by Gini coefficient
+indices <- indices[order(indices$gini, decreasing = TRUE), ]
+## correlation between Gini and segregation indicies
+cor(indices$gini, indices$seg)
+head(indices) # states with high Gini index
+tail(indices) # states with low Gini index
+## creating a map
+map(database = "state")
+for (i in 1:nrow(indices)) {
+    map(database = "state", region = indices$state[i], 
+        col = rgb(red = 0, blue = 0, green = 100 / 255, 
+          alpha = indices$gini[i] / max(indices$gini)), 
+      fill = TRUE, add = TRUE)
+}
+title("Gini Index")
+```
+
+The correlation between the dissimilarity and Gini indices is around 0.6. This is not as high as one might expect given that they both measure the degree to which Republican and Democratic votes are differently distributed across space. The main conceptual difference between the two is that the dissimilarity index compares the spatial distributions of two groups, whereas the Gini index compares the spatial distribution of one group across counties with a hypothetical distribution in which the group is distributed perfectly evenly.  That is, the dissimilarity index can be interpreted as the proportion of one group that would have to move in order to equalize the spatial distributions, whereas the Gini index measures how different the spatial distribution of Democratic voters within each state is from a distribution in which every county has the same percentage of Democratic voters. Note that we could have repeated this exercise for Republican voters to get a slightly different measure. Empirically, the two measures differ also because the dissimilarity index accounts for population differences across counties. By contrast, the Gini index (at least as we have used it here) weights every county equally.
+
+The results show that, according to both measures, the South is the most segregated region in terms of presidential voting patterns. This could be explained by high levels of racial segregation, for example. On the other hand, the measures indicate that Democratic and Republican voters are well-mixed in New England and parts of the Midwest.  Note that for some states such as California, the dissimilarity index is higher than the Gini index. This could arise from counties that are both highly populated and politically heterogeneous.
+
+## Question 6
+
+Lastly, we examine how the degree of political segregation has changed in each state over time. Use animation to visualize these changes. Briefly comment on the patterns you observe.
+
+## Answer 6
+
+```{r}
+library("animation")
+saveHTML({
+    for (i in 1:14) { 
+        iter.data1 <- subset(election, 
+                             subset = (year == 1960 + 4 * (i - 1))) 
+        states <- unique(iter.data1$state)
+        seg <- NA
+        for (j in 1:length(states)){
+            iter.data2 <- subset(iter.data1, 
+                                 subset = (state == states[j]))
+            D <- sum(iter.data2$dem)
+            R <- sum(iter.data2$rep)
+            ## no Dem votes in Alabama 1960
+            seg[j] <- sum(abs(iter.data2$dem / max(D, 1) - 
+                                  iter.data2$rep / R)) / 2
+        }
+        map(database = "state")
+        for (k in 1:length(states)) { 
+            map(database = "state", region = states[k], 
+                col = rgb(red = 0.5, blue = 0.5, green = 0, 
+                    alpha = min(seg[k] * 2, 1)), 
+                fill = TRUE, add = TRUE)
+        }
+        title(paste("Residential Segregation,", 
+                    1960 + 4 * (i - 1), "Presidential Election"))
+    }
+}, htmlfile = "elections2.html", outdir = getwd(), autobrowse = FALSE)
+```
+
+There has been an obvious increase in residential segregation over the past three presidential elections -- 2004, 2008, and 2012. Recall that the interpretation of the segregation index is the proportion of voters who would have to move in order to equalize the spatial distribution of Democratic and Republican votes. This means that, state for state, Democratic and Republican voters are more spatially removed from one another than ever before.

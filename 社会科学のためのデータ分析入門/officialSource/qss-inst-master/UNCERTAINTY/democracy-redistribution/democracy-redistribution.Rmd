@@ -1,0 +1,185 @@
+---
+title: "Democracy and Redistribution"
+output: pdf_document
+---
+
+A long-standing debate in the social sciences is whether democracies redistribute more to the poor than autocracies.  Research on this topic is challenging, however, due to the prevalence of missing data. Information about particular countries (and variables) are often missing, and this absence of data is not random. For example, autocratic countries are less likely to report their data to international institutions like the World Bank. Also, starting in the 1990s, countries have become better at both collecting and reporting data on different indicators such as economic growth or infant mortality. So if we just analyze data without taking these factors into account, we might bias our results. This exercise is based on the following prominent paper:
+
+Ross, Michael (2006), "[Is Democracy Good for the Poor](https://doi.org/10.1111/j.1540-5907.2006.00220.x)", *American Journal of Political Science*, Vol. 50, No. 4, pp. 860 - 874.  
+
+Prior to Ross' work, the prevailing belief was that democracies redistributed to the poor more than autocracies.  Ross's work challenged this belief. Specifically, Ross argued that previous studies had paid insufficient attention to differences between countries and time trends. Further, Ross argued that their analysis did not address the problem of missing data.
+
+Below you will find a dictionary with the main variables in two datasets we analyze:
+
+**World Bank:** `world_bank.csv`
+
+Name                 Description
+-------------------  --------------------------------------------------------
+`country_name`        Country name.
+`country_code`        Country abbreviation.
+`year`                Year.
+`gdp_growth`          GDP growth rate (percentage).      
+`gdp_per_capita`      GDP per capita (2000 US$).
+`inf_mort`            Infant mortality (deaths per 1000 children under 5).
+`pop_density`         Population density (per sq. km).
+
+**Polity IV:** `polity.csv`
+
+Name                 Description
+-------------------  ---------------------------------------------------------
+`country`             Country name.
+`ccode`               Country abbreviation.
+`year`                Year.
+`polity`              Polity Score. Ranges from -10 (most autocratic) to 10 (most democratic)
+
+## Question 1
+
+Read in the two files, `world_bank.csv` and `polity.csv`. Discuss what the observations in each dataset are and report the number of observations in each. Additionally, calculate the proportion of missing data for each and every variable in the World Bank data. Which variables seem to be missing the most data?  You can use a loop to answer this question or you can do it some other way. You may find that the function `is.na()` may be helpful.  The function can take as an input a dataframe as well. Remember that `R` takes `TRUE` or `FALSE` statement as a binary variable. Specifically, a `TRUE` is equal to `1` and a `FALSE` is a `0`. 
+
+## Answer 1
+
+```{r}
+# read-in
+wb <- read.csv("data/world_bank.csv")
+polity <- read.csv("data/polity.csv")
+
+# number of observations
+nrow(wb)
+nrow(polity)
+
+# calculate missingness for vars in wb without loop
+wb_na <- ifelse(is.na(wb), 1, 0)
+colMeans(wb_na)
+
+# calculate missingness for vars in wb with loop
+variable.names <- colnames(wb)
+for (varname in variable.names) {
+  print(paste("Proportion missing data for variable:", varname))
+  print(mean(is.na(wb[ , varname])))
+}
+```
+
+We have more than 10,000 observations for each dataset. However, we do have quite a lot of missing data. Identifying information for the row, like the country's name and the year, is nearly always present. However, the more interesting data on GDP and infant mortality are missing nearly 20\% of the time.
+
+## Question 2
+
+Let's clean the data and prep it for merging. First, subset the `polity` data so it contains only years from 1970 to 2015 (make sure to include both 1970 and 2015). Second, let's keep only the columns we need: `scode`, `year`, `polity`. Let's rename the column `scode` to `country_code`, so we can merge this dataset with the World Bank dataset. Finally, merge the two datasets using both `country_code` and `year`. You may want to use the function `merge()`. How many observations are in this new merged dataset?
+
+## Answer 2
+
+```{r}
+#subset
+polity <- subset(polity, 
+                 subset = (year >= 1970 & year <= 2015),
+                 select = c("scode", "year", "polity"))
+
+# rename
+colnames(polity) <- c("country_code", "year", "polity")
+
+# merge
+wb_polity <- merge(wb, polity, by = c("country_code", "year"))
+```
+
+Done! There are `r nrow(wb_polity)` observations in this new dataset.
+
+## Question 3
+
+Now we are going to investigate the pattern of missing data. In a linear regression in `R`, if any of the variables used are missing for an observation, that row will be deleted and not included in the analysis. This is a major problem in previous analyses, as pointed out by Ross (2006). As a basis for future questions, create a new column variable in the merged dataset called `missing` which has a value of `1` if any of the variables in your merged dataset are missing, and `0` otherwise. **Hint:** Using the function `ifelse()`, and `apply(x, 1, anyNA)` may be helpful.  The function `apply()` will go row by row in dataset `x`, check if there are any NA's (hence `anyNA`) in any of the columns, and output `TRUE` if any of the entries are missing, and `FALSE` otherwise. These types of columns are usually called indicators: they indicate the presence of missing data.  
+
+## Answer 3
+
+```{r}
+# missing data index
+wb_polity$missing <- ifelse(
+  apply(wb_polity, 1, anyNA),
+  1, 0
+)
+```
+
+## Question 4
+
+Let's visualize the pattern of missingness across time. Calculate the proportion of rows with missing data by year. Then plot that in a graph, with the years as the x-axis, and the proportion of missingness as the y-axis. Make sure to include informative titles and labels. How has the pattern of missing data evolved over time?
+
+## Answer 4
+
+```{r}
+# plot over time:
+prop_missingness <- tapply(wb_polity$missing,
+                           wb_polity$year,
+                           mean, na.rm = T)
+
+plot(x = unique(wb_polity$year),
+     y = prop_missingness,
+     main = "Proportion of Missing Data by Year",
+     xlab = "Year",
+     ylab = "Proportion of Missing Data")
+```
+
+The amount of missing data has decreased over time, perhaps due to better record keeping.
+
+## Question 5
+
+Let's compare the polity scores of country-year observations with missing data and those without. Make a boxplot graph of the polity scores in the group of observations with missing data, and in the group without missing data. Using the `formula` argument of the `boxplot()` function may help you in placing these two boxplots in the same plot. Do countries with and without missing data differ in their polity scores?
+
+## Answer 5
+
+```{r}
+boxplot(formula = polity ~ missing,
+        data = wb_polity,
+        main = "Polity Score of Missing vs. Non-Missing Data",
+        ylab = "Polity Score",
+        xlab = "Missing Data",
+        ylim = c(-15, 15), 
+        names = c("No", "Yes"))
+```
+
+Yes. Country-years that have missing data tend to have lower polity scores. The median polity score of country-years without missing data is $`r median(wb_polity$polity[!wb_polity$missing])`$ and the median polity score of country-years with missing data is $`r median(wb_polity$polity[wb_polity$missing])`$.
+
+## Question 6
+
+In his study, Ross analyzes whether a democracy is better for the poor by looking at infant mortality. The intuition is that countries that do more for the poor help decrease infant mortality by improving access to public healthcare, among other policies.  First we will run a regression without taking into account between-country difference and time trends. In other words, we will not address the problems that Ross identifies in his study. In order to run this regression, we first use the log transformation of population density, infant mortality, and GDP per capita to address their skewness. Use the function `log()` to do so. With your merged data set, regress logged infant mortality on the following predictors: polity score, gdp growth, logged gdp per capita, logged population density. State the null hypothesis regarding the polity score. Interpret your point estimates, standard error, and p-value on the polity variable.  **Hint:** For a model of the form $\ln{(Y)} = \beta_0 + \beta_1 X + \beta_2 Z + \epsilon$, where $Y$ is our outcome, $X$ is our covariate of interest, $Z$ is all other covariates, and $\epsilon$ is the error, we need to undo the logarithm in order to correctly interpret $\beta_1$. If we change $X$ by one unit (an increase in polity score of 1), this model expects our $Y$ to change by $100 \times (\exp(\beta_1) - 1)$ percent. **Bonus question:** try to explain how this result is obtained).  
+
+## Answer 6
+
+```{r}
+# log vars
+wb_polity$pop_density_log <- log(wb_polity$pop_density)
+wb_polity$inf_mort_log <- log(wb_polity$inf_mort)
+wb_polity$gdp_per_capita_log <- log(wb_polity$gdp_per_capita)
+
+# regression (naive) and store results
+fit_dem <- lm(data = wb_polity,
+              formula = inf_mort_log ~ polity + gdp_growth +
+                gdp_per_capita_log + pop_density_log)
+
+summary(fit_dem)
+```
+
+The null hypothesis in this study is that there is no relationship between democracy and infant mortality, once we account for all the other predictors in our model. Our point estimate for polity is `r round(fit_dem$coefficients[2], 2)`.  Note that the formula of interpreting the coefficient of a logged variable is obtained by recognizing the equality $\beta_1 = \log Y_1 - \log Y_0 = \log \frac{Y_1}{Y_0}$ where $Y_1$ represents the outcome when $X = x_1$ and $Y_0$ represents the outcome when $X = x_0$, implying $\exp(\beta_1)-1=\frac{Y_1}{Y_0} - 1$. In our example, we can calculate this as follows:
+
+```{r}
+## get polity coefficient
+polCoef <- fit_dem$coefficients[2]
+100 * (exp(polCoef) - 1)
+```
+
+So, this model finds that a one unit increase in polity leads to a `r round(100 * (exp(fit_dem$coefficients[2]) - 1), 2)`% decrease in infant mortality.
+
+The p-value on this coefficient is `r round(summary(fit_dem)$coefficients[,4][2], 2)`, which is much lower than 0.05. The standard error, `r round(summary(fit_dem)$coefficients[,2][2], 3)`, suggests that we are highly precise about our estimate. Therefore we can reject the null hypothesis that democracy does not have an effect on infant mortality. This would lead us to conclude that democracy is indeed associated with a reducuction in infant mortality.
+
+## Question 7
+
+Let's rerun the statistical model presented by Ross (2006), slightly modified. Regress logged infant mortality on the following predictors: polity score, gdp growth, logged gdp per capita, and logged population density. Following Ross, we now add fixed effects by country and year. That is, we add a dummy variable for each country and a dummy variable for each year in order to adjust for any factors that are specific to each country and year. Interpret the results again and compare them to question 5. What are the differences between the results of this model and those of the model in the previous question? Give a substantive interpretation. Finally, how do you think that the pattern of missing data may affect the results obtained in this question?
+
+## Answer 7
+
+```{r}
+fit_dem <- lm(data = wb_polity,
+              formula = inf_mort_log ~ polity + gdp_growth +
+                gdp_per_capita_log + pop_density_log + country_name + year)
+summary(fit_dem)
+```
+
+Things change once we take into account country and year fixed effects. The point estimate on polity, $`r round(summary(fit_dem)$coefficients[,1][2], 3)`$ is essentially 0. This suggests that there is essentially no relationship between polity and infant mortality, after controlling for the other covariates. The p-value, $`r round(summary(fit_dem)$coefficients[,4][2], 2)`$, is greater than 0.05. Therefore, we no longer can reject the null hypothesis that democracy has a negative association with infant mortality. Adjusting for the variance found in country and year fixed effects removed the significance of the polity variable although the magnitude of estimated coefficient is quite similar. 
+
+As we've seen throughout this exercise, there is a non-random pattern of missing data. Specifically, we saw that countries with lower polity scores and older observations tend to have more missing data. Since the above analysis deletes observations with missing data when fitting the linear regression model, a great deal of missing data for low-polity score countries may lead the linear regression model to underestimate the relationship between polity and infant mortality. We saw a relationship between polity and infant mortality in Question 6 that disappeared when adjusting for variation by country and year, but it's possible that there is a true relationship that is being weakened by the missing data.

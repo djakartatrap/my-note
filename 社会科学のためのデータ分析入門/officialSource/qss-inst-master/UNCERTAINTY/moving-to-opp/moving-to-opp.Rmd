@@ -1,0 +1,196 @@
+---
+title: "The Moving to Opportunity Experiment"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Millions of low-income Americans live in high-poverty neighborhoods, which also tend to be racially segregated and often dangerous. While social scientists have long believed that living in these neighborhoods contributes to negative outcomes for its residents, it is often difficult to establish a causal link between neighborhood conditions and individual outcomes. The Moving to Opportunity (MTO) demonstration was designed to test whether offering housing vouchers to families living in public housing in high-poverty neighborhoods could improve their lives by helping them move to lower-poverty neighborhoods. 
+
+Between 1994 and 1998 the U.S. Department of Housing and Urban Development enrolled 4,604 low-income households from from public housing projects in Baltimore, Boston, Chicago, Los Angeles, and New York in MTO, randomly assigning enrolled families in each site to one of three groups: (1) The low-poverty voucher group received special MTO vouchers, which could only be used in census tracts with 1990 poverty rates below 10% and counseling to assist with relocation, (2) the traditional voucher group received regular section 8 vouchers, which they could use anywhere, and (3) the control group, who received no vouchers but continued to qualify for any project-based housing assistance they were entitled to receive. Today we will use the MTO data to learn if being given the opportunity to move to lower-poverty neighborhoods actually improved participants' economic and subjective wellbeing. This exercise is based on the following article:
+
+Ludwig, J., Duncan, G.J., Gennetian, L.A., Katz, L.F., Kessler, J.R.K., and Sanbonmatsu, L., 2012. "[Neighborhood Effects on the Long-Term Well-Being of Low-Income Adults](https://dx.doi.org/10.1126/science.1224648)." *Science*, Vol. 337, Issue 6101, pp. 1505-1510.
+
+The file `mto.csv` includes the following variables for 3,263 adult participants in the voucher and control groups:
+
+------------------------------------------------------------------------------
+ Name                             Description
+ -------------------------------- ----------------------------------------------------------
+ `group`                          factor with 3 levels, `lpv` (low-poverty voucher), `sec8` 
+                                  (traditional section 8 voucher), and `control` 
+ 
+ `complier`                       `1` for `lpv` and `sec8` group members who used their MTO 
+                                  vouchers to relocate, `0` otherwise
+                                  
+ `site`                           factor with 5 levels corresponding to MTO demonstration 
+                                  cities (`Baltimore`, `Boston`, `Chicago`, `Los Angeles`, 
+                                  `New York`)
+                                  
+ `wellbeing_zscore`               Standardized measure of subjective wellbeing (happiness), 
+                                  centered around control group mean and re-scaled such that 
+                                  control group mean = 0 and its standard deviation = 1. Measure 
+                                  is based on a 3-point happiness scale.
+                                  
+ `econ_ss_zcore`                  Standardized measure of economic self-sufficiency, centered 
+                                  around the control group mean and re-scaled such that the control 
+                                  group mean = 0 and its standard deviation = 1. Measure aggregates 
+                                  several measures of economic self-sufficiency or dependency (earnings, 
+                                  government transfers, employment, etc.)
+------------------------------------------------------------------------------
+ 
+The data we will use are not the original data, this dataset has been modified to protect participants' confidentiality, but the results of our analysis will be consistent with published data on the MTO demonstration. In the Science article the authors pooled the two voucher groups into a single treatment group because their outcomes converged over time. We will follow their strategy to assess the experiment's results. 
+
+## Question 1
+
+Did receiving MTO vouchers improve economic self-sufficiency (econ_ss_zscore) and subjective wellbeing (wellbeing_zscore) among treatment group participants?  Begin by creating a new variable `treatment` based on the `group` variable where `1` indicates membership in the `lpv` or `sec8` groups (treatment group) and `0` indicates membership in the control group.  First, test the null hypothesis that the mean subjective wellbeing variable for the treatment group is 0 with the alternative hypothesis that it is greater than 0.  Second, conduct a two-sample, two-sided hypotheses test to assess if MTO influenced economic self-sufficiency and subjective wellbeing, respectively.  Throughout this question, use 5% as the significance threshold.
+
+## Answer 1
+
+We first read in the data and create the treatment variable.
+
+```{r}
+mto <- read.csv("data/mto.csv")
+mto$treatment <- ifelse(mto$group == 'control', 0, 1)
+```
+
+We conduct a one-sample $t$-test for subjective wellbeing using the treatment group.
+
+```{r}
+## one-sided t-test
+t.test(mto$wellbeing_zscore[mto$treatment == 1], alternative = "greater")
+```
+
+Since the p-value is less than $0.05$, we reject the null at the significance level of 5%. This result supports the hypothesis that the mean of the subjective index for the treatment group is greater than 0.  We next use the two-sided, two-sample test with the null hypothesis that the average treatment effect of receiving the voucher is zero. We start with the self-sufficiency index.
+
+```{r}
+t.test(mto$wellbeing_zscore[mto$treatment == 1], mto$wellbeing_zscore[mto$treatment == 0])
+```
+
+Since the p-value is less than 0.05, we reject the null hypothesis. This result supports the hypothesis that receiving the voucher increased the subjective wellbeing on average.  We  next conduct the same test for the economic self-sufficiency. 
+
+
+```{r}
+# t-test
+t.test(mto$econ_ss_zscore[mto$treatment == 1], mto$econ_ss_zscore[mto$treatment == 0])
+```
+
+The average treatment effect of MTO on the self-sufficiency index is negative but small, failing to reject the null hypothesis.  That is, there is no statistically significant difference in economic self-suficiency between the treatment and control groups.  Thus, altogether, the results suggest that the receipt of vouchers only improves subjective wellbeing but not economic self-sufficiency.
+
+Recall that the outcome variables are standardized such that the average of the control group is zero and its standard deviation is 1.  Therefore, we could conduct the one-sample test using the treatment group only where the average outcome for the treatment group represents the average treatment effect.
+
+## Question 2
+
+MTO was designed to test whether *moving* from a high-poverty to a low-poverty neighborhood improved individual outcomes. But the MTO intervention only provided vouchers and counseling that would facilitate relocation for the treatment group.  It would have been unethical to force treatment group members to move and force control group members to stay where they were living. Treatment group individuals could choose not to relocate, and control group individuals could choose to relocate. About half of the participants who received MTO vouchers actually complied with the experiment by using their vouchers to move to a low-poverty neighborhood. 
+
+Restrict the data to voucher recipients (groups `lpv` and `sec8`) and compute the proportion of compliers among the traditional section 8 voucher recipients and the low-poverty voucher recipients.  Test the hypothesis that compliance among the traditional section 8 voucher recipients was greater than among the low-poverty voucher recipients. Is the difference in proportions significant at the 5% significance level? 
+
+## Answer 2
+
+We subset the data and compute proportions by group.
+
+```{r}
+## restrict data to voucher recipients:
+vouchers <- mto[mto$group != "control", ]
+## drop the level "control" from the group variable: 
+vouchers$group <- as.factor(as.character(vouchers$group))
+## create a frequency table:
+x <- table(vouchers$group, vouchers$complier)
+prop.table(x, margin = 1)
+```
+
+About `r round(prop.table(x, margin = 1)[1, 2] * 100)`% of the low-poverty voucher recipients used their vouchers to relocate, compared to about `r round(prop.table(x, margin = 1)[2, 2] * 100)`% of traditional section 8 voucher recipients.  We next conduct the hypothesis test.
+
+```{r}
+prop.test(x, alternative = "greater")
+```
+
+The p-value is close to 0, suggesting that low-poverty voucher recipients had a lower compliance rate, relative to traditional voucher recipients.  This result can be obtained "by hand", without the continuity correction:
+
+```{r}
+## sample size
+n0 <- sum(vouchers$group == "lpv")
+n1 <- sum(vouchers$group == "sec8")
+## p
+p <- mean(vouchers$complier) #overall
+p0 <- mean(vouchers$complier[vouchers$group == "lpv"])
+p1 <- mean(vouchers$complier[vouchers$group == "sec8"])
+## diff. in means estimate
+est <- p0 - p1
+est
+## standard error
+se <- sqrt(p * (1 - p) * (1 / n0 + 1 / n1))
+se
+## z-statistic
+zstat <- est / se
+zstat
+## one-sided p-value
+pnorm(-abs(zstat))
+## equivalent to:
+prop.test(x, alternative = 'greater', correct = FALSE)
+```
+
+## Question 3
+
+Explore the possibility that the null result we observed for economic self-suffiency was the consequence of low compliance among voucher recipients in some MTO sites (i.e. cities). Compliance, defined as using a voucher if one is assigned to the treatment (either `lpv` or `sec8` groups), ranged from a low of 36% in Chicago to 68% in Los Angeles. Examine whether the treatment had an effect on economic self-sufficiency in Los Angeles, the MTO city with the highest compliance rate.  Specifically, conduct a two-sided t-test at the 5% significance level with the null hypothesis that the average treatment effect of MTO on economic self sufficiency for MTO participants in Los Angeles participants is zero.  Next, compute the power of this test assuming that the estimates based on this sample are equal to their true values.  Under this assumption, what is the minimum sample size necessary to detect the observed difference in economic self-sufficiency at the 95% significance level? 
+
+## Answer 3
+
+We begin by subsetting data to obtain the estimated average treatment effect:
+
+```{r}
+la <- mto[mto$site == "Los Angeles", ]
+est <- mean(la$econ_ss_zscore[la$treatment == 1]) - mean(la$econ_ss_zscore[la$treatment == 0])
+est
+```
+
+The estimated average treatment effect of MTO on the economic self-sufficiency index of Los Angeles participants is negative but small, `r round(est*100)` percentage points. We now conduct the hypothesis test:
+
+```{r}
+t.test(la$econ_ss_zscore[la$treatment == 1], la$econ_ss_zscore[la$treatment == 0])
+```
+
+With a large $p$-value, we fail to reject the null hypothesis of zero average treatment effect.  We next compute the power of the two-sample, two-sided hypothesis test under the assumption that the observed estimates equal their true values. 
+
+```{r}
+power1 <- power.t.test(delta = est, sd = 1, type = "two.sample", n = nrow(la))
+power1
+```
+
+The power of this test at the 5% significance level is `r round(power1$power, 2)`, implying that the probability of a type II error is `r round(1-power1$power, digits = 2)`.  This suggests that the sample size is too small to detect the average treatment effect of `r round(est, 2)`.  Indeed, we need a much larger sample to detect such a small effect size as the below analysis shows. 
+ 
+```{r}
+power.t.test(delta = est, sd = 1, type = "two.sample", power = 0.9)
+```
+
+## Question 4
+
+In the Science article, the authors assessed the long-term effects of receiving an MTO housing voucher on four outcomes. Three of these outcomes were indices of economic self-sufficiency, physical health, and mental health, which allowed them to aggregate 14 separate outcomes into three domains of wellbeing. The fourth outcome was a single measure of subjective wellbeing. Thus, instead of conducting 15 separate hypothesis tests, they did only four tests. 
+
+Assume that the authors had not aggregated these various outcomes into indices and had instead tested hypotheses for each of the 15 outcome measures they employed. At the 5% significance level, what is the probability that the authors would have rejected at least one out of 15 null hypotheses, even if all null hypotheses were true? What is the probability that they would have rejected at least 3 null hypotheses, even if all hypotheses were true? What about at the 1% significance level?  Now, compare these probabilities with the probability of rejecting at least one out of 4 true null hypothesis at the 5% and 1% significance levels. Which pitfall of hypothesis testing were the authors able to avoid with this strategy?  For this question, assume that each test is independent.
+
+## Answer 4
+
+The probability of rejecting at least one hypothesis can be calculated as:
+$\Pr(reject >= 1) = 1 - \Pr(reject = 0) = 1 - (1 - \alpha^n) = \alpha^n$ where $\alpha$ is the significance level and $n$ is the number of hypothesis being tested. Similarly, we have  $\Pr(reject >= 3) = 1 - \Pr(reject <= 2)$.
+
+```{r}
+## 5% signifincance level
+## prob. of rejecting 1 out of 15 hypotheses
+1 - 0.95^15
+## prob. of rejecting 3 or more out of 15 hypotheses
+1 - pbinom(2, size = 15, prob = 0.05)
+## 1% significance level
+## prob. of rejecting 1 out of 15 hypotheses, 
+1 - 0.99^15
+## prob. of rejecting 3 or more out of 15 hypotheses
+1 - pbinom(2, size = 15, prob = 0.01)
+```
+
+Now, the probability of rejecting at least 1 of 4 true null hypothesis at the 5% and 1% significance levels:
+
+```{r}
+1 - 0.95^4
+1 - 0.99^4
+```
+
+By testing only 4 instead of 15 outcomes the authors avoided the pitfall of multiple testing -- conducting too many hypotheses tests increases the probability of having at least one false discovery (i.e., type I errors or false positives). Increasing the significance level to 1% is another strategy that can be employed to reduce the probability of a type I errror, but it increases the probability of a type II error because it does so at the cost of statistical power.
