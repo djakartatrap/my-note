@@ -1,6 +1,8 @@
 ---
 title: "Success of Leader Assassination as a Natural Experiment"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 One longstanding debate in the study of international relations
