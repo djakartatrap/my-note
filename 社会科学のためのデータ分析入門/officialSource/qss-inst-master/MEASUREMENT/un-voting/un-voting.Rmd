@@ -1,6 +1,9 @@
 ---
 title: "Voting in the United Nations General Assembly"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
 
 
