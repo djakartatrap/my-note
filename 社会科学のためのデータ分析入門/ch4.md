@@ -59,3 +59,78 @@ $ Y = \alpha + \beta X + \epsilon $
 つまり、そのモデルがそのデータの生成過程を100％正確に表現しているわけではないが、実用的である、という事は多々あるよ、ということらしい(多分)
 
 この事をしっかりアタマにいれておこうね！！！
+
+### 線形モデルの式と、実際のデータから考えだす式を改めて整理する
+
+線形モデルを仮定するので、実際のデータは下記の式で計算できる事になる。
+
+$\hat{Y} = \hat{\alpha} + \hat{\beta}x$
+- $\hat{Y}$ : 予測値(predicted value), 当てはめ値(fitted value)
+- $\hat{\alpha}$ : 仮定している線形モデルの切片 $\alpha$ の推定値
+- $\hat{\beta}$ : 仮定している線形モデルの傾き、 $\beta$ の推定値
+
+ただし、実際のところ予測値が実際の観察値とピッタリ一致する事はない。
+観察された結果と予測値の差は、__残差(residual)__ 、または __予測誤差(prediction error)__ と呼ばれ、以下の式で表される。
+
+$ \hat{\epsilon} = Y - \hat{Y}$
+- $\hat{\epsilon}$ : 残差。誤差項の推定値という事になるので、hatがついた $\epsilon$ になっている。
+
+### 線形回帰のしくみ
+線形モデルに当てはめて、係数の推定値を得る際、一般的には __最小二乗法(least squares)__ という手法が使われる。
+#### 最小二乗法をざっくりと
+残差( $\hat{\epsilon}$ ) の2乗をすべて足し上げた値を最小にするような係数を解析的に求める手法。
+この、残差の2乗の総和の事を、__残差平方和(sum of squared residuals; SSR)__ という。
+
+数式で言えばこうなる。
+
+$ SSR = \displaystyle\sum_{i=1}^n \hat{\epsilon}^2 = \displaystyle\sum_{i=1}^n (Y_i - \hat{Y_i})^2 $
+
+この SSR を最小にすることができる＝誤差が最も少ない状況といえる。
+
+##### ちょっと詳しく見る最小二乗法
+内部の解析アルゴリズムはすっ飛ばし、結果だけ書くと、係数の推定値は以下の式で導き出せる事になっている。
+$$
+\begin{aligned}
+\hat\alpha &= \bar{Y} - \beta\bar{X} \\
+\hat\beta &= \frac {\displaystyle\sum_{i=1}^{n}(Y_i - \bar{Y})(X_i - \bar{X})} {\displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2}
+\end{aligned}
+$$
+- $\bar{Y}$ ; 観測値Yの平均
+- $\bar{X}$ ; 観測値Xの平均
+
+ここでさらに、モデル作成時に仮定していた下記の式から、
+$\hat{Y} = \hat{\alpha} + \hat{\beta}x$
+$x$が平均値 $\bar{X}$ の時のyの値を求めると・・・
+$$
+\begin{aligned}
+\hat{\alpha} + \hat{\beta}\bar{X} &= (\bar{Y} - \beta\bar{X}) + \hat{\beta}\bar{X} \\
+&= 0
+\end{aligned}
+$$
+となる。
+つまり、__最小二乗法の回帰モデルは、観測値のX軸の平均値、Y軸の平均を通る直線になっている__。
+
+更に残差について見てみる。
+最小二乗法では、残差の2乗の総和を最小にするように係数の推定値を解析的に導出する。
+つまり、残差の平均について見てみると・・・
+
+$$
+\begin{aligned}
+\hat\epsilon \text{の平均} &= \frac {1} {n} \displaystyle\sum_{i=1}^{n} (Y_i - (\hat\alpha + \hat\beta X_i)) \\
+&= \bar{Y} - \hat\alpha - \hat\beta\bar{X} \\
+&= 0
+\end{aligned}
+$$
+となる。
+
+ここまでの情報をまとめると・・・
+
+__最小二乗法とは__
+- 残差平方和を最小にするような切片と傾きを求める手法
+- 観測値のX、Y の平均値を通る直線を描く
+- 残差の平均はゼロになる
+
+### 線形回帰モデルの評価について
+ 線形回帰の評価をする場合、誤差を RMSE(root mean squraed error) で見る事が多い。それは、この誤差の数式の中に、SSRが入っており、最小二乗法を使う回帰において、評価指標としてはもってこいだからなのだ！
+
+ $ RMSE = \sqrt{\frac{1}{n} SSR} = \sqrt{\frac{1}{n} \displaystyle\sum_{i=1}^{n} \hat\epsilon^2} $
