@@ -134,3 +134,60 @@ __最小二乗法とは__
  線形回帰の評価をする場合、誤差を RMSE(root mean squraed error) で見る事が多い。それは、この誤差の数式の中に、SSRが入っており、最小二乗法を使う回帰において、評価指標としてはもってこいだからなのだ！
 
  $ RMSE = \sqrt{\frac{1}{n} SSR} = \sqrt{\frac{1}{n} \displaystyle\sum_{i=1}^{n} \hat\epsilon^2} $
+
+### 相関係数と回帰係数の傾きの不思議な関係
+
+$$
+\begin{aligned}
+\hat\beta &= \frac {\displaystyle\sum_{i=1}^{n}(Y_i - \bar{Y})(X_i - \bar{X})} {\displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2} \\
+&= \frac {
+            \displaystyle\sum_{i=1}^{n}(Y_i - \bar{Y})(X_i - \bar{X})
+            \centerdot
+            \sqrt{
+              \frac{1}{n}
+              \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2
+            }
+          }  
+          { \bigg(
+            n \centerdot
+            \sqrt{\frac{1}{n} \displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2 }
+            \centerdot
+            \sqrt{\frac{1}{n} \displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2 }
+            \bigg)
+            \centerdot
+            \sqrt{
+                \frac{1}{n}
+                \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2
+            }
+          } \text{   ...分母と分子に}\sqrt{
+              \frac{1}{n}
+              \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2
+          } \text{をかけた} \\
+&= \frac{1}{n} \displaystyle\sum_{i=1}^{n}
+  \frac{
+    (Y_i - \bar{Y})(X_i - \bar{X})
+  }{
+    \sqrt{
+        \frac{1}{n}
+        \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2
+    }
+    \sqrt{
+      \frac{1}{n}
+      \displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2
+    }
+  }
+  \centerdot
+  \frac{
+    \sqrt{
+      \frac{1}{n}
+      \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2
+    }
+  }{
+    \sqrt{
+      \frac{1}{n}
+      \displaystyle\sum_{i=1}^{n} (X_i - \bar{X})^2
+    }
+  } \\
+&= \text{XとYの相関係数} \centerdot \frac{\text{Y}}{}
+\end{aligned}
+$$
